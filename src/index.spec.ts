@@ -1,8 +1,8 @@
 import { assert } from 'chai';
-import { PLACEHOLDER } from "./index.js";
+import { KSON_VERSION } from "./index.js";
 
-describe("PLACEHOLDER", function() {
-    it("should be equal to 42", function() {
-        assert.strictEqual(PLACEHOLDER, 42);
+describe("KSON_VERSION", function() {
+    it("should be a string", function() {
+        assert.isString(KSON_VERSION);
     });
 });
