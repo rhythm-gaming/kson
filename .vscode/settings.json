@@ -1,5 +1,7 @@
 {
     "cSpell.words": [
+        "arktype",
+        "disp",
         "dotenv",
         "eslintcache",
         "Jimin",
@@ -10,6 +12,7 @@
         "Nuxt",
         "pids",
         "stylelintcache",
+        "translit",
         "vuepress",
         "wscript"
     ]
