@@ -1,12 +1,12 @@
 export const KSON_VERSION: `${number}.${number}.${number}` = "0.8.0";
 
-export * from "./meta";
-export * from "./impl";
+export * from "./meta.js";
+export * from "./impl.js";
 
 import { type, type Type } from 'arktype';
 
-import { MetaInfo } from "./meta";
-import { ImplInfo } from "./impl";
+import { MetaInfo } from "./meta.js";
+import { ImplInfo } from "./impl.js";
 
 export interface KsonArkType {
     version: string;
