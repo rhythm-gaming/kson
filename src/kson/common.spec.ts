@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 
-import { Uint, Double } from "./common.js";
+import { Uint, Double, ByPulse } from "./common.js";
 
 describe("Uint", function() {
     const ACCEPT_VALUES = [0, 42, 1000, 65535, 123456789];
@@ -57,6 +57,58 @@ describe("Double", function() {
     it("should reject non-number values", function() {
         for(const v of ["", "hello", {}, [], true, false, null, undefined, 123n]) {
             assert.throws(() => Double.assert(v));
+        }
+    });
+});
+
+describe("ByPulse", function() {
+    const ByPulseDouble = ByPulse(Double);
+
+    it("should accept valid [Uint, Double] values", function() {
+        for(const v of [
+            [0, 0],
+            [42, 123.45],
+            [100, -98.76],
+        ]) {
+            assert.deepStrictEqual(ByPulseDouble.assert(v), v);
+        }
+    });
+
+    it("should reject if pulse is not a Uint", function() {
+        for(const v of [
+            [-1, 0],
+            [0.5, 0],
+            [Number.POSITIVE_INFINITY, 0],
+            [Number.NaN, 0],
+            ["hello", 0],
+        ]) {
+            assert.throws(() => ByPulseDouble.assert(v));
+        }
+    });
+
+    it("should reject if value is not the correct type", function() {
+        for(const v of [
+            [0, Number.POSITIVE_INFINITY],
+            [0, Number.NEGATIVE_INFINITY],
+            [0, Number.NaN],
+            [0, "hello"],
+        ]) {
+            assert.throws(() => ByPulseDouble.assert(v));
+        }
+    });
+
+    it("should reject if not a 2-element array", function() {
+        for(const v of [
+            [],
+            [0],
+            [0, 0, 0],
+            {},
+            "hello",
+            123,
+            null,
+            undefined,
+        ]) {
+            assert.throws(() => ByPulseDouble.assert(v));
         }
     });
 });

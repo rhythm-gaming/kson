@@ -1,15 +1,21 @@
 import { type, type Type, type Traversal } from 'arktype';
 import type { DefaultRaw, PipeArkType } from "../util/type.js";
+import { ConsType } from "../util/type.js";
 
 export const Uint: Type<number> = type("(number.safe & number.integer) >= 0");
 export type Uint = typeof Uint.infer;
 
-export const Double: Type<number> = type("number").narrow((v, ctx) => Number.isFinite(v) || ctx.mustBe("a finite value"));
+export const Double: Type<number> = type('number').narrow((v, ctx) => Number.isFinite(v) || ctx.mustBe("a finite value"));
 export type Double = typeof Double.infer;
 
-export type ByPulse<T> = [y: Uint, v: T];
-export type ByMeasureIdx<T> = [idx: Uint, v: T];
-export type DefKeyValuePair<T> = [name: string, v: T];
+export const ByPulse = <TOut>(T: Type<TOut>) => ConsType(Uint, T);
+export type ByPulse<TOut> = ReturnType<typeof ByPulse<TOut>>;
+
+export const ByMeasureIdx = <TOut>(T: Type<TOut>) => ConsType(Uint, T);
+export type ByMeasureIdx<TOut> = ReturnType<typeof ByMeasureIdx<TOut>>;
+
+export const DefKeyValuePair = <TOut>(T: Type<TOut>) => ConsType(type('string'), T);
+export type DefKeyValuePair<TOut> = ReturnType<typeof DefKeyValuePair<TOut>>;
 
 export type GraphValue = [v: Double, vf: Double];
 export const GraphValue: Type<GraphValue> = type([Double, Double]);
