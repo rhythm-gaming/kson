@@ -1,6 +1,6 @@
 import { type, type Type } from 'arktype';
 
-import { checkIsRecord, Double, Uint } from "./scalar.js";
+import { checkIsRecord, Double, Uint } from "./common.js";
 
 export interface MetaInfo {
     title: string;
