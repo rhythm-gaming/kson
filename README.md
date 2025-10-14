@@ -24,12 +24,12 @@ This library can be used to create such tools, but is not a tool by itself.
 
 ### Contents
 
-- [ ] Metadata
-- [ ] Comments
+- [X] Metadata
+- [X] Comments
 - [ ] Notes and Lasers
 - [ ] Audio Effects
-- [ ] Camera Effects
-- [ ] BG Effects
+- [X] Camera Effects
+- [X] BG Effects
 
 ## Chart File Specs
 

@@ -35,9 +35,9 @@ export const MetaInfo: Type<MetaInfo> = type({
 
     chart_author: "string",
     difficulty: Uint.or("string"),
-    level: Uint,
+    level: Uint, // omit range check
 
-    disp_bpm: "string",
+    disp_bpm: "string", // omit character check
     std_bpm: Double.optional(),
 
     jacket_filename: "string?",
