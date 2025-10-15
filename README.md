@@ -22,15 +22,6 @@ This library can be used to create such tools, but is not a tool by itself.
 - [ ] Writing KSH
 - [ ] Writing KSON
 
-### Contents
-
-- [X] Metadata
-- [X] Comments
-- [ ] Notes and Lasers
-- [X] Audio Effects
-- [X] Camera Effects
-- [X] BG Effects
-
 ## Chart File Specs
 
 - [KSH Chart File Format Specification](https://github.com/m4saka/ksm-chart-format-spec/blob/master/ksh_format.md)
