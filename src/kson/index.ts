@@ -27,7 +27,7 @@ import { EditorInfo } from "./editor.js";
 import { CompatInfo } from "./compat.js";
 import { ImplInfo } from "./impl.js";
 
-export const Kson = exportType(type({
+export const KSON = exportType(type({
     version: "string",
     meta: MetaInfo,
     beat: BeatInfo,
@@ -40,16 +40,16 @@ export const Kson = exportType(type({
     "compat?": CompatInfo,
     "impl?": ImplInfo,
 }));
-export type Kson = typeof Kson.infer;
+export type KSON = typeof KSON.infer;
 
 /**
  * Parse KSON data from string or object.
  * @param data Either an object, or a stringified JSON object.
  * @returns Validated KSON object.
  */
-export function parseKson(data: unknown): Kson {
+export function parseKSON(data: unknown): KSON {
     if(typeof data === 'string') data = JSON.parse(data);
-    return Kson.assert(data);
+    return KSON.assert(data);
 }
 
 /**
@@ -57,7 +57,7 @@ export function parseKson(data: unknown): Kson {
  * @param kson The KSON object to be simplified.
  * @returns 
  */
-export function simplifyKson(kson: Kson): object {
+export function simplifyKSON(kson: KSON): object {
     // TODO: Implement this!
     return kson;
 }
@@ -68,7 +68,7 @@ export function simplifyKson(kson: Kson): object {
  * @param simplify Whether to simplify the KSON object before serializing.
  * @returns 
  */
-export function stringifyKson(kson: Kson, simplify: boolean = true): string {
-    const obj: object = simplify ? simplifyKson(kson) : kson;
+export function stringifyKSON(kson: KSON, simplify: boolean = true): string {
+    const obj: object = simplify ? simplifyKSON(kson) : kson;
     return JSON.stringify(obj);
 }
