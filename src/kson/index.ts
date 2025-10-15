@@ -42,7 +42,33 @@ export const Kson = exportType(type({
 }));
 export type Kson = typeof Kson.infer;
 
+/**
+ * Parse KSON data from string or object.
+ * @param data Either an object, or a stringified JSON object.
+ * @returns Validated KSON object.
+ */
 export function parseKson(data: unknown): Kson {
     if(typeof data === 'string') data = JSON.parse(data);
     return Kson.assert(data);
+}
+
+/**
+ * Simplify a given KSON object by removing all fields that are allowed to be omitted.
+ * @param kson The KSON object to be simplified.
+ * @returns 
+ */
+export function simplifyKson(kson: Kson): object {
+    // TODO: Implement this!
+    return kson;
+}
+
+/**
+ * Serializes the given KSON object.
+ * @param kson The KSON object to serialize.
+ * @param simplify Whether to simplify the KSON object before serializing.
+ * @returns 
+ */
+export function ksonToString(kson: Kson, simplify: boolean = true): string {
+    const obj: object = simplify ? simplifyKson(kson) : kson;
+    return JSON.stringify(obj);
 }
