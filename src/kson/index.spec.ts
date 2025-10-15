@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 
-import { parseKSON, stringifyKSON, KSON } from "./index.js";
+import { parseKSON, stringifyKSON } from "./index.js";
 
 const minimalKSON = {
     version: "0.8.0",
