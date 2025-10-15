@@ -12,32 +12,34 @@ export * from "./editor.js";
 export * from "./compat.js";
 export * from "./impl.js";
 
-import { type, type Type } from 'arktype';
+import { type } from 'arktype';
+
+import { exportType, type PublicType } from "../util/type.js";
 
 import { MetaInfo } from "./meta.js";
-import { BeatInfo, type BeatInfoArkType } from "./beat.js";
-import { GaugeInfo, type GaugeInfoArkType } from "./gauge.js";
-import { CameraInfo, type CameraInfoArkType } from "./camera.js";
-import { BGInfo, type BGInfoArkType } from "./bg.js";
+import { BeatInfo } from "./beat.js";
+import { GaugeInfo } from "./gauge.js";
+import { CameraInfo } from "./camera.js";
+import { BGInfo } from "./bg.js";
 import { EditorInfo } from "./editor.js";
 import { CompatInfo } from "./compat.js";
 import { ImplInfo } from "./impl.js";
 
-export interface KsonArkType {
+export interface Kson {
     version: string;
     meta: MetaInfo;
-    beat: BeatInfoArkType;
-    gauge?: GaugeInfoArkType;
+    beat: BeatInfo;
+    gauge?: GaugeInfo;
     // note?: NoteInfo;
     // audio?: AudioInfo;
-    camera?: CameraInfoArkType;
-    bg?: BGInfoArkType;
+    camera?: CameraInfo;
+    bg?: BGInfo;
     editor?: EditorInfo;
     compat?: CompatInfo;
     impl?: ImplInfo;
 }
 
-export const Kson: Type<KsonArkType> = type({
+export const Kson: PublicType<Kson> = exportType(type({
     version: "string",
     meta: MetaInfo,
     beat: BeatInfo,
@@ -47,9 +49,7 @@ export const Kson: Type<KsonArkType> = type({
     "editor?": EditorInfo,
     "compat?": CompatInfo,
     "impl?": ImplInfo,
-});
-
-export type Kson = typeof Kson.infer;
+}));
 
 export function parseKson(data: unknown): Kson {
     if(typeof data === 'string') data = JSON.parse(data);

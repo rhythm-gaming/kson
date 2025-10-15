@@ -1,73 +1,42 @@
-import { type, type Type } from 'arktype';
+import { type } from 'arktype';
+import { exportType } from "../util/type.js";
 
-import { Int } from './common.js';
-import type { DefaultRaw } from '../util/type.js';
+import { Int } from "./common.js";
 
-export interface KSHBGInfo {
-    filename?: string;
-}
-
-export const KSHBGInfo: Type<KSHBGInfo> = type({
+export const KSHBGInfo = exportType(type({
     "filename?": 'string',
-});
+}));
+export type KSHBGInfo = typeof KSHBGInfo.infer;
 
-export interface KSHLayerRotationInfoArkType {
-    tilt: DefaultRaw<boolean, true>;
-    spin: DefaultRaw<boolean, true>;
-}
-
-export const KSHLayerRotationInfo: Type<KSHLayerRotationInfoArkType> = type({
+export const KSHLayerRotationInfo = exportType(type({
     tilt: type('boolean').default(true),
     spin: type('boolean').default(true),
-});
+}));
 export type KSHLayerRotationInfo = typeof KSHLayerRotationInfo.infer;
 
-export interface KSHLayerInfoArkType {
-    filename?: string;
-    duration: DefaultRaw<Int, 0>;
-    rotation?: KSHLayerRotationInfoArkType;
-}
-
-export const KSHLayerInfo: Type<KSHLayerInfoArkType> = type({
+export const KSHLayerInfo = exportType(type({
     "filename?": 'string',
     duration: Int.default(0),
     "rotation?": KSHLayerRotationInfo,
-});
+}));
 export type KSHLayerInfo = typeof KSHLayerInfo.infer;
 
-export interface KSHMovieInfoArkType {
-    "filename?"?: 'string';
-    offset: DefaultRaw<Int, 0>;
-}
-
-export const KSHMovieInfo: Type<KSHMovieInfoArkType> = type({
+export const KSHMovieInfo = exportType(type({
     "filename?": 'string',
     offset: Int.default(0),
-});
+}));
 export type KSHMovieInfo = typeof KSHMovieInfo.infer;
 
-export interface LegacyBGInfoArkType {
-    bg?: KSHBGInfo[];
-    layer?: KSHLayerInfoArkType;
-    movie?: KSHMovieInfoArkType;
-}
-
-export const LegacyBGInfo: Type<LegacyBGInfoArkType> = type({
+export const LegacyBGInfo = exportType(type({
     "bg?": KSHBGInfo.array().atLeastLength(1).atMostLength(2),
     "layer?": KSHLayerInfo,
     "movie?": KSHMovieInfo,
-});
+}));
 export type LegacyBGInfo = typeof LegacyBGInfo.infer;
 
-export interface BGInfoArkType {
-    filename?: string;
-    offset: DefaultRaw<Int, 0>;
-    legacy?: LegacyBGInfoArkType;
-}
-
-export const BGInfo: Type<BGInfoArkType> = type({
+export const BGInfo = exportType(type({
     "filename?": 'string',
     offset: Int.default(0),
     "legacy?": LegacyBGInfo,
-});
+}));
 export type BGInfo = typeof BGInfo.infer;

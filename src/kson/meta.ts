@@ -1,34 +1,13 @@
-import { type, type Type } from 'arktype';
+import { type } from 'arktype';
+import { exportType } from "../util/type.js";
 
 import { checkIsRecord, Double, Uint } from "./common.js";
 
-export interface MetaInfo {
-    title: string;
-    title_translit?: string;
-    title_img_filename?: string;
-    
-    artist: string;
-    artist_translit?: string;
-    artist_img_filename?: string;
-
-    chart_author: string;
-    difficulty: Uint|string;
-    level: Uint;
-
-    disp_bpm: string;
-    std_bpm?: Double;
-
-    jacket_filename?: string;
-    jacket_author?: string;
-    icon_filename?: string;
-    information?: string;
-}
-
-export const MetaInfo: Type<MetaInfo> = type({
+export const MetaInfo = exportType(type({
     title: "string",
     title_translit: "string?",
     title_img_filename: "string?",
-
+    
     artist: "string",
     artist_translit: "string?",
     artist_img_filename: "string?",
@@ -44,4 +23,5 @@ export const MetaInfo: Type<MetaInfo> = type({
     jacket_author: "string?",
     icon_filename: "string?",
     information: "string?",
-}).narrow(checkIsRecord);
+}).narrow(checkIsRecord));
+export type MetaInfo = typeof MetaInfo.infer;

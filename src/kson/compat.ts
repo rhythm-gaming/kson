@@ -1,14 +1,9 @@
-import { type, type Type } from 'arktype';
+import { type } from 'arktype';
+import { exportType } from "../util/type.js";
 
-import { ByPulse } from './common.js';
+import { ByPulse } from "./common.js";
 
-export interface KSHUnknownInfo {
-    meta?: Record<string, string>;
-    option?: Record<string, ByPulse<string>[]>;
-    line?: ByPulse<string>[];
-}
-
-export const KSHUnknownInfo: Type<KSHUnknownInfo> = type({
+export const KSHUnknownInfo = exportType(type({
     'meta?': {
         '[string]': 'string',
     },
@@ -16,14 +11,12 @@ export const KSHUnknownInfo: Type<KSHUnknownInfo> = type({
         '[string]': ByPulse(type('string')).array(),
     },
     'line?': ByPulse(type('string')).array(),
-});
+}));
+export type KSHUnknownInfo = typeof KSHUnknownInfo.infer;
 
-export interface CompatInfo {
-    ksh_version?: string;
-    ksh_unknown?: KSHUnknownInfo;
-}
-
-export const CompatInfo: Type<CompatInfo> = type({
+export const CompatInfo = exportType(type({
     'ksh_version?': 'string',
     'ksh_unknown?': KSHUnknownInfo,
-});
+}));
+export type CompatInfo = typeof CompatInfo.infer;
+

@@ -1,4 +1,5 @@
-import { type, type Type } from 'arktype';
+import { type } from 'arktype';
+import { exportType } from "../util/type.js";
 
-export type ImplInfo = Record<string, unknown>;
-export const ImplInfo: Type<ImplInfo> = type("Record<string, unknown>");
+export const ImplInfo = exportType(type("Record<string, unknown>"));
+export type ImplInfo = typeof ImplInfo.infer;
