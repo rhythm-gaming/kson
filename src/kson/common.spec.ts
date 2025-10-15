@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 
-import { Uint, Double, ByPulse } from "./common.js";
+import { Uint, Double, ByPulse, GraphPoint } from "./common.js";
 
 describe("Uint", function() {
     const ACCEPT_VALUES = [0, 42, 1000, 65535, 123456789];
@@ -110,5 +110,49 @@ describe("ByPulse", function() {
         ]) {
             assert.throws(() => ByPulseDouble.assert(v));
         }
+    });
+});
+
+describe("GraphPoint", function() {
+    it("should accept valid 2-element GraphPoint values", function() {
+        assert.deepStrictEqual(GraphPoint.assert([0, 0]), [0, [0, 0]]);
+        assert.deepStrictEqual(GraphPoint.assert([42, 123.45]), [42, [123.45, 123.45]]);
+        assert.deepStrictEqual(GraphPoint.assert([100, -98.76]), [100, [-98.76, -98.76]]);
+        assert.deepStrictEqual(GraphPoint.assert([0, [1.0, 2.0]]), [0, [1.0, 2.0]]);
+    });
+
+    it("should accept valid 3-element GraphPoint values", function() {
+        assert.deepStrictEqual(GraphPoint.assert([0, 0, [0.5, 0.5]]), [0, [0, 0], [0.5, 0.5]]);
+        assert.deepStrictEqual(GraphPoint.assert([42, 123.45, [0.0, 1.0]]), [42, [123.45, 123.45], [0.0, 1.0]]);
+        assert.deepStrictEqual(GraphPoint.assert([0, [1.0, 2.0], [1.0, 0.0]]), [0, [1.0, 2.0], [1.0, 0.0]]);
+    });
+
+    it("should reject if y is not a Uint", function() {
+        assert.throws(() => GraphPoint.assert([-1, 0]));
+        assert.throws(() => GraphPoint.assert([0.5, 0]));
+        assert.throws(() => GraphPoint.assert(["hello", 0]));
+    });
+
+    it("should reject if v is not a valid type", function() {
+        assert.throws(() => GraphPoint.assert([0, "hello"]));
+        assert.throws(() => GraphPoint.assert([0, {}]));
+        assert.throws(() => GraphPoint.assert([0, [1]]));
+        assert.throws(() => GraphPoint.assert([0, [1, 2, 3]]));
+        assert.throws(() => GraphPoint.assert([0, [1, "2"]]));
+    });
+
+    it("should reject if curve is not a valid type", function() {
+        assert.throws(() => GraphPoint.assert([0, 0, "hello"]));
+        assert.throws(() => GraphPoint.assert([0, 0, {}]));
+        assert.throws(() => GraphPoint.assert([0, 0, [1]]));
+        assert.throws(() => GraphPoint.assert([0, 0, [1, 2, .3]]));
+        assert.throws(() => GraphPoint.assert([0, 0, [1, "2"]]));
+    });
+
+    it("should reject if not a 2 or 3-element array", function() {
+        assert.throws(() => GraphPoint.assert([]));
+        assert.throws(() => GraphPoint.assert([0]));
+        assert.throws(() => GraphPoint.assert([0, 0, [0, 0], 0]));
+        assert.throws(() => GraphPoint.assert({}));
     });
 });
