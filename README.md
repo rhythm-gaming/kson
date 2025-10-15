@@ -18,7 +18,7 @@ This library can be used to create such tools, but is not a tool by itself.
 ### Format Support
 
 - [ ] Reading KSH
-- [ ] Reading KSON
+- [X] Reading KSON
 - [ ] Writing KSH
 - [ ] Writing KSON
 
