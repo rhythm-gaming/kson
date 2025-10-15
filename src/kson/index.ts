@@ -68,7 +68,7 @@ export function simplifyKson(kson: Kson): object {
  * @param simplify Whether to simplify the KSON object before serializing.
  * @returns 
  */
-export function ksonToString(kson: Kson, simplify: boolean = true): string {
+export function stringifyKson(kson: Kson, simplify: boolean = true): string {
     const obj: object = simplify ? simplifyKson(kson) : kson;
     return JSON.stringify(obj);
 }
