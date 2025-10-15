@@ -1,17 +1,53 @@
 # @rhythm-gaming/kson
 
-> [!CAUTION]
+> [!WARNING]
 > This library is currently in development.
 
-This is a TypeScript library for reading and writing KSH and KSON files of K-Shoot Mania.
-This library is focused on being a minimal yet easy-to-use library with minimal dependency.
+This is a small TypeScript library for reading and writing KSH and KSON files, which are used by K-Shoot Mania and USC.
 
-**NOTE:** This package is intended to replace [kshoot.js](https://github.com/rhythm-gaming/kshoot.js), which will be modified to be a thin wrapper around this library.
+**NOTE:** This package is intended to replace [kshoot.js](https://github.com/rhythm-gaming/kshoot.js).
 
 **NOTE:** Check out [kshoot-tools](https://github.com/rhythm-gaming/kshoot-tools) if you are looking for *a program or a tool* to do something with chart files.
 This library can be used to create such tools, but is not a tool by itself.
 
-## Usage Examples
+## How to Use
+
+The library can be installed by the following `npm` command.
+
+```bash
+npm install @rhythm-gaming/kson
+```
+
+Two pairs of functions, one for KSH, and one for KSON, are implemented by the library.
+
+Both KSH and KSON charts are represented by a `KSON` object.
+
+```ts
+import {
+  parseKSH, stringifyKSH,   // for reading/writing KSH
+  parseKSON, stringifyKSON, // for reading/writing KSON
+  type KSON,
+  KSON_VERSION, // the version of the KSON specification this library implements
+} from "@rhythm-gaming/kson";
+
+// Open a KSH file.
+
+import * as fs from "node:fs/promises";
+
+const ksh_file = await fs.readFile("chart.ksh", 'utf-8');
+const kson: KSON = parseKSH(ksh_file);
+
+// Modifiy the chart's title.
+
+kson.meta.title = "Good morning!";
+
+// Save the file, both as KSH and KSON.
+
+await fs.writeFile("chart.ksh", stringifyKSH(kson), 'utf-8');
+await fs.writeFile("chart.kson", stringifyKSON(kson), 'utf-8');
+```
+
+Consult the KSON specification for how to navigate through a `KSON` object.
 
 ## Progress
 
@@ -20,9 +56,9 @@ This library can be used to create such tools, but is not a tool by itself.
 - [ ] Reading KSH
 - [X] Reading KSON
 - [ ] Writing KSH
-- [ ] Writing KSON
+- [X] Writing KSON
 
-## Chart File Specs
+## Helpful Resources
 
 - [KSH Chart File Format Specification](https://github.com/m4saka/ksm-chart-format-spec/blob/master/ksh_format.md)
 - [KSON Format Specification](https://github.com/m4saka/ksm-chart-format-spec/blob/master/kson_format.md)
