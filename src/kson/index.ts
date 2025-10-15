@@ -14,7 +14,7 @@ export * from "./impl.js";
 
 import { type } from 'arktype';
 
-import { exportType, type PublicType } from "../util/type.js";
+import { exportType } from "../util/type.js";
 
 import { MetaInfo } from "./meta.js";
 import { BeatInfo } from "./beat.js";
@@ -25,21 +25,7 @@ import { EditorInfo } from "./editor.js";
 import { CompatInfo } from "./compat.js";
 import { ImplInfo } from "./impl.js";
 
-export interface Kson {
-    version: string;
-    meta: MetaInfo;
-    beat: BeatInfo;
-    gauge?: GaugeInfo;
-    // note?: NoteInfo;
-    // audio?: AudioInfo;
-    camera?: CameraInfo;
-    bg?: BGInfo;
-    editor?: EditorInfo;
-    compat?: CompatInfo;
-    impl?: ImplInfo;
-}
-
-export const Kson: PublicType<Kson> = exportType(type({
+export const Kson = exportType(type({
     version: "string",
     meta: MetaInfo,
     beat: BeatInfo,
@@ -50,6 +36,7 @@ export const Kson: PublicType<Kson> = exportType(type({
     "compat?": CompatInfo,
     "impl?": ImplInfo,
 }));
+export type Kson = typeof Kson.infer;
 
 export function parseKson(data: unknown): Kson {
     if(typeof data === 'string') data = JSON.parse(data);
