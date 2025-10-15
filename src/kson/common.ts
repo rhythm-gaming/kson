@@ -28,7 +28,8 @@ export type GraphValue = typeof GraphValue.infer;
 
 export const CoerceGraphValue = exportType(GraphValue.or(Double.pipe((v): GraphValue => [v, v])));
 
-export const GraphCurveValue = exportType(type([Double, Double]));
+const GraphCurveValueScalar = Double.narrow((v, ctx) => (0 <= v && v <= 1) || ctx.mustBe("between 0 and 1"));
+export const GraphCurveValue = exportType(type([GraphCurveValueScalar, GraphCurveValueScalar]));
 export type GraphCurveValue = typeof GraphCurveValue.infer;
 
 export const GraphPoint = exportType(type([Uint, CoerceGraphValue, GraphCurveValue.optional()]));

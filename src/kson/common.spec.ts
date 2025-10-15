@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 
-import { Uint, Double, ByPulse, GraphPoint } from "./common.js";
+import { Uint, Double, ByPulse, GraphPoint, GraphCurveValue } from "./common.js";
 
 describe("Uint", function() {
     const ACCEPT_VALUES = [0, 42, 1000, 65535, 123456789];
@@ -154,5 +154,64 @@ describe("GraphPoint", function() {
         assert.throws(() => GraphPoint.assert([0]));
         assert.throws(() => GraphPoint.assert([0, 0, [0, 0], 0]));
         assert.throws(() => GraphPoint.assert({}));
+    });
+});
+
+describe("GraphCurveValue", function() {
+    it("should accept valid GraphCurveValue values", function() {
+        for(const v of [
+            [0.0, 0.0],
+            [0.5, 0.5],
+            [1.0, 1.0],
+            [0.1, 0.9],
+        ]) {
+            assert.deepStrictEqual(GraphCurveValue.assert(v), v);
+        }
+    });
+
+    it("should reject if values are out of range [0.0, 1.0]", function() {
+        for(const v of [
+            [-0.1, 0.5],
+            [0.5, 1.1],
+            [-10.0, 0.5],
+            [0.5, 20.0],
+        ]) {
+            assert.throws(() => GraphCurveValue.assert(v));
+        }
+    });
+
+    it("should reject if values are not numbers", function() {
+        for(const v of [
+            ["0.5", 0.5],
+            [0.5, "0.5"],
+            [true, false],
+            [null, 0.5],
+            [0.5, undefined],
+            [{}, []],
+        ]) {
+            assert.throws(() => GraphCurveValue.assert(v));
+        }
+    });
+
+    it("should reject if not a 2-element array", function() {
+        for(const v of [
+            [],
+            [0.5],
+            [0.5, 0.5, 0.5],
+        ]) {
+            assert.throws(() => GraphCurveValue.assert(v));
+        }
+    });
+
+    it("should reject non-array values", function() {
+        for(const v of [
+            {},
+            "hello",
+            123,
+            null,
+            undefined,
+        ]) {
+            assert.throws(() => GraphCurveValue.assert(v));
+        }
     });
 });
