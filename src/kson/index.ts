@@ -1,31 +1,31 @@
 export const KSON_VERSION: `${number}.${number}.${number}` = "0.8.0";
 
-export * from "./common.js";
-export * from "./meta.js";
-export * from "./beat.js";
-export * from "./gauge.js";
-export * from "./note.js";
-export * from "./audio.js";
-export * from "./camera.js";
-export * from "./bg.js";
-export * from "./editor.js";
-export * from "./compat.js";
-export * from "./impl.js";
+export * from "./schema/common.js";
+export * from "./schema/meta.js";
+export * from "./schema/beat.js";
+export * from "./schema/gauge.js";
+export * from "./schema/note.js";
+export * from "./schema/audio.js";
+export * from "./schema/camera.js";
+export * from "./schema/bg.js";
+export * from "./schema/editor.js";
+export * from "./schema/compat.js";
+export * from "./schema/impl.js";
 
 import { type } from 'arktype';
 
 import { exportType } from "../util/type.js";
 
-import { MetaInfo } from "./meta.js";
-import { BeatInfo } from "./beat.js";
-import { GaugeInfo } from "./gauge.js";
-import { NoteInfo } from "./note.js";
-import { AudioInfo } from "./audio.js";
-import { CameraInfo } from "./camera.js";
-import { BGInfo } from "./bg.js";
-import { EditorInfo } from "./editor.js";
-import { CompatInfo } from "./compat.js";
-import { ImplInfo } from "./impl.js";
+import { MetaInfo } from "./schema/meta.js";
+import { BeatInfo } from "./schema/beat.js";
+import { GaugeInfo } from "./schema/gauge.js";
+import { NoteInfo } from "./schema/note.js";
+import { AudioInfo } from "./schema/audio.js";
+import { CameraInfo } from "./schema/camera.js";
+import { BGInfo } from "./schema/bg.js";
+import { EditorInfo } from "./schema/editor.js";
+import { CompatInfo } from "./schema/compat.js";
+import { ImplInfo } from "./schema/impl.js";
 
 export const KSON = exportType(type({
     version: "string",

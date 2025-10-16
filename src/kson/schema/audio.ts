@@ -1,5 +1,5 @@
 import { type } from 'arktype';
-import { exportType } from "../util/type.js";
+import { exportType } from "../../util/type.js";
 
 import { ByPulse, DefKeyValuePair, Double, Int, Uint } from "./common.js";
 

@@ -1,5 +1,5 @@
 import { type } from 'arktype';
-import { exportType } from "../util/type.js";
+import { exportType } from "../../util/type.js";
 
 import { GraphSectionPointArray, Uint } from "./common.js";
 

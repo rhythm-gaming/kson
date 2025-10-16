@@ -1,5 +1,5 @@
 import { type } from 'arktype';
-import { exportType } from "../util/type.js";
+import { exportType } from "../../util/type.js";
 import { ByMeasureIdx, ByPulse, Double, Uint, GraphPoint } from "./common.js";
 
 const PositiveInt = Uint.narrow((v, ctx) => v > 0 || ctx.mustBe("a positive integer"));

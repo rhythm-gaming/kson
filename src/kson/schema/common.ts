@@ -1,5 +1,5 @@
 import { type, type Type, type Traversal } from 'arktype';
-import { ConsType, exportType, type PublicType } from "../util/type.js";
+import { ConsType, exportType, type PublicType } from "../../util/type.js";
 
 export const Int = exportType(type("number.safe & number.integer"));
 export type Int = typeof Int.infer;
