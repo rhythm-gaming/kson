@@ -2,32 +2,33 @@ export type { KSH } from "./ast/index.js";
 
 import { KSON } from "../kson";
 import { type KSH, parseKSH as parseToAST, stringifyKSH as stringifyAST } from "./ast/index.js";
+import { ksh2kson, kson2ksh } from "./converter/index.js";
 
 /**
- * Parse a KSH file into a KSON object.
+ * Parse a KSH source into a KSON object.
  * 
- * To parse into a KSH object (closer to the `.ksh` format), use `parseKSH(ksh, true)` instead.
+ * To parse into a KSH object (closer to the `.ksh` format), use `parseKSH(ksh_src, true)` instead.
  * 
- * @param ksh 
- * @param to_ast 
+ * @param ksh_src 
+ * @param to_ksh 
  */
-export function parseKSH(ksh: string, to_ast?: false): KSON;
+export function parseKSH(ksh_src: string, to_ksh?: false): KSON;
 
 /**
- * Parse a KSH file into a KSH object.
+ * Parse a KSH source into a KSH object.
  * 
- * To parse into a KSON object (easier to work with semantically), use `parseKSH(ksh)` instead.
+ * To parse into a KSON object (easier to work with semantically), use `parseKSH(ksh_src)` instead.
  * 
- * @param ksh 
- * @param to_ast 
+ * @param ksh_src 
+ * @param to_ksh 
  */
-export function parseKSH(ksh: string, to_ast: true): KSH;
+export function parseKSH(ksh_src: string, to_ksh: true): KSH;
 
-export function parseKSH(ksh: string, to_ast?: boolean): KSON|KSH {
-    const ast = parseToAST(ksh);
-    if(to_ast) return ast;
-
-    throw new Error("Not yet implemented!");
+export function parseKSH(ksh_src: string, to_ksh?: boolean): KSON|KSH {
+    const ksh = parseToAST(ksh_src);
+    if(to_ksh) return ksh;
+    
+    return ksh2kson(ksh);
 }
 
 function isKSH(value: KSON|KSH): value is KSH {
@@ -39,7 +40,7 @@ function isKSH(value: KSON|KSH): value is KSH {
 }
 
 export function stringifyKSH(chart: KSON|KSH): string {
-    if(!isKSH(chart)) throw new Error("Not yet implemented!");
+    if(!isKSH(chart)) chart = kson2ksh(chart);
 
     return stringifyAST(chart);
 }
