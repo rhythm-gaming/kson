@@ -1,4 +1,4 @@
-import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo } from "../../kson/index.js";
+import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo } from "../../kson/index.js";
 import { difficultyToInt, TICKS_PER_WHOLE_NOTE } from "./common.js";
 import { KSH, stringifyLine } from "../ast/index.js";
 
@@ -37,6 +37,7 @@ export class KSH2KSONConverter {
     #gauge_info: GaugeInfo | null = null;
     #audio_info: AudioInfo | null = null;
     #bg_info: BGInfo | null = null;
+    #editor_info: EditorInfo | null = null;
     #compat_info: CompatInfo | null = null;
     readonly #note_info: NoteInfo = {};
 
@@ -93,6 +94,10 @@ export class KSH2KSONConverter {
         return legacy.movie ?? (legacy.movie = KSHMovieInfo.assert({}));
     }
 
+    #getEditorInfo(): EditorInfo {
+        return this.#editor_info ?? (this.#editor_info = {});
+    }
+
     #getCompatInfo(): CompatInfo {
         return this.#compat_info ?? (this.#compat_info = {});
     }
@@ -121,9 +126,9 @@ export class KSH2KSONConverter {
         for (const line of this.#ksh.header) {
             if (line.type !== 'option') {
                 const ksh_unknown_info = this.#getKSHUnknownInfo();
-                const unknown_line = ksh_unknown_info.line ?? (ksh_unknown_info.line = []);
+                const unknown_lines = ksh_unknown_info.line ?? (ksh_unknown_info.line = []);
 
-                unknown_line.push([0, stringifyLine(line)]);
+                unknown_lines.push([0, stringifyLine(line)]);
 
                 continue;
             }
@@ -241,6 +246,7 @@ export class KSH2KSONConverter {
 
         let pulse = 0;
         let time_sig = this.#initial_time_sig;
+        let next_time_sig = time_sig;
 
         for (const measure of this.#ksh.body) {
             let measure_pulse_len = TICKS_PER_WHOLE_NOTE * time_sig[0];
@@ -257,10 +263,40 @@ export class KSH2KSONConverter {
             const pulse_per_line = measure_pulse_len / measure_line_count;
 
             for(const line of measure.lines) {
-                if(line.type === 'chart') {
-                    pulse += pulse_per_line;
+                switch(line.type) {
+                    case 'chart': {
+                        pulse += pulse_per_line;
+                        break;
+                    }
+                    case 'option': {
+                        switch(line.key) {
+                            case 'beat': {
+                                next_time_sig = parseTimeSig(line.value);
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                    case 'comment': {
+                        const editor_info = this.#getEditorInfo();
+                        const comments = editor_info.comment ?? (editor_info.comment = []);
+
+                        comments.push([pulse, line.comment]);
+
+                        break;
+                    }
+                    case 'unknown': {
+                        const ksh_unknown_info = this.#getKSHUnknownInfo();
+                        const unknown_lines = ksh_unknown_info.line ?? (ksh_unknown_info.line = []);
+
+                        unknown_lines.push([pulse, stringifyLine(line)]);
+
+                        break;
+                    }
                 }
             }
+
+            time_sig = next_time_sig;
         }
     }
 
