@@ -4,8 +4,6 @@ import { KSON } from "../../kson/index.js";
 import { KSH2KSONConverter } from "./ksh2kson.js";
 import { KSON2KSHConverter } from "./kson2ksh.js";
 
-// const LASER_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmno";
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ksh2kson(ksh: KSH): KSON {
     return (new KSH2KSONConverter(ksh)).toKSON();

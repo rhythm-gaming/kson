@@ -5,7 +5,7 @@ import { KSH, KSHLine } from "./ast.js";
  * @param line The AST line object.
  * @returns The string representation of the line.
  */
-function stringifyLine(line: KSHLine): string {
+export function stringifyLine(line: KSHLine): string {
     switch(line.type) {
         case 'option':
             return `${line.key}=${line.value}`;

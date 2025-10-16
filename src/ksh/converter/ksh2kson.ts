@@ -1,7 +1,7 @@
-import { KSH, OptionLine } from "../ast/index.js";
-import { BeatInfo, GaugeInfo, GraphSectionPoint, KSON, KSON_VERSION, LaserSection, MetaInfo, TimeSig } from "../../kson/index.js";
+import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo } from "../../kson/index.js";
+import { difficultyToInt, TICKS_PER_WHOLE_NOTE } from "./common.js";
+import { KSH, stringifyLine } from "../ast/index.js";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function parseTimeSig(value: string): TimeSig {
     const parts = value.split('/');
     if (parts.length !== 2) throw new Error(`Invalid time signature: ${value}`);
@@ -10,134 +10,273 @@ function parseTimeSig(value: string): TimeSig {
     const d = parseInt(parts[1], 10);
 
     if (!Number.isSafeInteger(n) || !Number.isSafeInteger(d) || n <= 0 || d <= 0) {
-        throw new Error(`Invalid time signature: ${value}`); 
+        throw new Error(`Invalid time signature: ${value}`);
     }
 
     return [n, d];
 }
 
-function getHeaderMap(ksh: KSH): Map<string, string> {
-    return new Map(
-        ksh.header.filter((x): x is OptionLine => x.type === 'option').map(({key, value}) => [key, value])
-    );
-}
-
-const DIFFICULTY_LOOKUP: Record<string, 0|1|2|3|undefined> = {
-    'light': 0,
-    'challenge': 1,
-    'extended': 2,
-    'infinite': 3,
-};
-
 export class KSH2KSONConverter {
-    // eslint-disable-next-line no-unused-private-class-members
-    #ksh: KSH;
-    #header_map: Map<string, string>;
-    
-    #time_sig_by_measure: TimeSig[] = [];
-    
-    #measure_pulses: number[] = [];
-    #measure_start_pulses: number[] = [];
+    readonly #ksh: KSH;
+
+    readonly #meta_info: MetaInfo = {
+        title: "",
+        artist: "",
+        chart_author: "",
+        difficulty: 0,
+        level: 1,
+        disp_bpm: '120',
+    };
+
+    readonly #beat_info: BeatInfo = {
+        bpm: [],
+        time_sig: [],
+        scroll_speed: [],
+    };
+
+    #gauge_info: GaugeInfo | null = null;
+    #audio_info: AudioInfo | null = null;
+    #bg_info: BGInfo | null = null;
+    #compat_info: CompatInfo | null = null;
+    readonly #note_info: NoteInfo = {};
+
+    #ksh_version: string | null = null;
+    #initial_bpm: number = 120.0;
+    #initial_time_sig: TimeSig = [4, 4];
 
     constructor(ksh: KSH) {
         this.#ksh = ksh;
-        this.#header_map = getHeaderMap(ksh);
-        this.#preprocessTiming();
+
+        this.#processHeader();
+        this.#processBody();
     }
 
-    #preprocessTiming() {
-        let curr_time_sig = parseTimeSig(this.#header_map.get('beat') ?? "4/4");
-        this.#time_sig_by_measure = [];
+    #getGaugeInfo(): GaugeInfo {
+        return this.#gauge_info ?? (this.#gauge_info = GaugeInfo.assert({}));
+    }
 
-        for(const measure of this.#ksh.body) {
-            for(let i=measure.lines.length; i-->0;) {
-                const line = measure.lines[i];
-                if(line.type === 'option' && line.key === 'beat') {
-                    curr_time_sig = parseTimeSig(line.value);
+    #getAudioInfo(): AudioInfo {
+        return this.#audio_info ?? (this.#audio_info = {});
+    }
+
+    #getBGMInfo(): BGMInfo {
+        const audio = this.#getAudioInfo();
+        return audio.bgm ?? (audio.bgm = BGMInfo.assert({}));
+    }
+
+    #getBGMPreviewInfo(): BGMPreviewInfo {
+        const bgm = this.#getBGMInfo();
+        return bgm.preview ?? (bgm.preview = BGMPreviewInfo.assert({}));
+    }
+
+    #getBGMLegacyInfo(): LegacyBGMInfo {
+        const bgm = this.#getBGMInfo();
+        return bgm.legacy ?? (bgm.legacy = LegacyBGMInfo.assert({fp_filenames: []}));
+    }
+
+    #getAudioEffectInfo(): AudioEffectInfo {
+        const audio = this.#getAudioInfo();
+        return audio.audio_effect ?? (audio.audio_effect = {});
+    }
+
+    #getBGInfo(): BGInfo {
+        return this.#bg_info ?? (this.#bg_info = BGInfo.assert({}));
+    }
+
+    #getBGLegacyInfo(): LegacyBGInfo {
+        const bg = this.#getBGInfo();
+        return bg.legacy ?? (bg.legacy = {});
+    }
+
+    #getBGLegacyMovieInfo() {
+        const legacy = this.#getBGLegacyInfo();
+        return legacy.movie ?? (legacy.movie = KSHMovieInfo.assert({}));
+    }
+
+    #getCompatInfo(): CompatInfo {
+        return this.#compat_info ?? (this.#compat_info = {});
+    }
+
+    #getKSHUnknownInfo(): KSHUnknownInfo {
+        const compat = this.#getCompatInfo();
+        return compat.ksh_unknown ?? (compat.ksh_unknown = {});
+    }
+
+    #getKeySound() {
+        const audio = this.#getAudioInfo();
+        return audio.key_sound ?? (audio.key_sound = {});
+    }
+
+    #getKeySoundLaser() {
+        const keySound = this.#getKeySound();
+        return keySound.laser ?? (keySound.laser = KeySoundLaserInfo.assert({}));
+    }
+
+    #getKeySoundLaserLegacy() {
+        const laser = this.#getKeySoundLaser();
+        return laser.legacy ?? (laser.legacy = KeySoundLaserLegacyInfo.assert({}));
+    }
+
+    #processHeader() {
+        for (const line of this.#ksh.header) {
+            if (line.type !== 'option') {
+                const ksh_unknown_info = this.#getKSHUnknownInfo();
+                const unknown_line = ksh_unknown_info.line ?? (ksh_unknown_info.line = []);
+
+                unknown_line.push([0, stringifyLine(line)]);
+
+                continue;
+            }
+
+            const { key, value } = line;
+
+            switch (key) {
+                // Meta
+                case 'title':       this.#meta_info.title               = value;                  break;
+                case 'title_img':   this.#meta_info.title_img_filename  = value;                  break;
+                case 'artist':      this.#meta_info.artist              = value;                  break;
+                case 'artist_img':  this.#meta_info.artist_img_filename = value;                  break;
+                case 'effect':      this.#meta_info.chart_author        = value;                  break;
+                case 'jacket':      this.#meta_info.jacket_filename     = value;                  break;
+                case 'illustrator': this.#meta_info.jacket_author       = value;                  break;
+                case 'difficulty':  this.#meta_info.difficulty          = difficultyToInt(value); break;
+                case 'level':       this.#meta_info.level               = parseInt(value, 10);    break;
+                case 'information': this.#meta_info.information         = value;                  break;
+
+                // Beat
+                case 't':
+                    this.#meta_info.disp_bpm = value;
+                    if (!value.includes('-')) {
+                        this.#initial_bpm = parseFloat(value);
+                    }
+                    break;
+                case 'to': this.#meta_info.std_bpm = parseFloat(value); break;
+                case 'beat': this.#initial_time_sig = parseTimeSig(value); break;
+
+                // Gauge
+                case 'total': this.#getGaugeInfo().total = parseInt(value, 10); break;
+
+                // Audio
+                case 'm': {
+                    const files = value.split(';');
+                    this.#getBGMInfo().filename = files[0];
+                    if (files.length > 1) {
+                        this.#getBGMLegacyInfo().fp_filenames = files;
+                    }
                     break;
                 }
-            }
+                case 'mvol': {
+                    let vol = parseInt(value, 10) / 100.0;
+                    if (this.#ksh_version === null) vol *= 0.6;
+                    this.#getBGMInfo().vol = vol;
+                    break;
+                }
+                case 'o': this.#getBGMInfo().offset = parseInt(value, 10); break;
+                case 'po': this.#getBGMPreviewInfo().offset = parseInt(value, 10); break;
+                case 'plength': this.#getBGMPreviewInfo().duration = parseInt(value, 10); break;
+                case 'chokkakuvol':
+                    this.#getKeySoundLaser().vol = [[0, parseInt(value, 10) / 100.0]];
+                    break;
+                case 'chokkakuautovol':
+                    this.#getKeySoundLaserLegacy().vol_auto = value === '1';
+                    break;
+                case 'pfilterdelay': {
+                    const effect = this.#getAudioEffectInfo();
+                    const laser = effect.laser ?? (effect.laser = AudioEffectLaserInfo.assert({}));
+                    laser.peaking_filter_delay = parseInt(value, 10);
+                    break;
+                }
 
-            this.#time_sig_by_measure.push(curr_time_sig);
-        }
-        
-        this.#measure_pulses = this.#time_sig_by_measure.map(([n, d]) => {
-            n *= 192;
-            if(n%d !== 0) {
-                throw new Error(`Invalid time signature ${n}/${d}`);
-            }
-            return n / d;
-        });
-        
-        this.#measure_start_pulses = [0];
-        for (let i = 0; i < this.#measure_pulses.length; ++i) {
-            this.#measure_start_pulses.push(this.#measure_start_pulses[i] + this.#measure_pulses[i]);
-        }
+                // BG
+                case 'bg': {
+                    const files = value.split(';');
+                    const legacy = this.#getBGLegacyInfo();
+                    if (files.length === 1) {
+                        legacy.bg = [{ filename: files[0] }];
+                    } else if (files.length === 2) {
+                        legacy.bg = [{ filename: files[0] }, { filename: files[1] }];
+                    }
+                    break;
+                }
+                case 'layer': {
+                    const legacy = this.#getBGLegacyInfo();
+                    const layer = legacy.layer ?? (legacy.layer = KSHLayerInfo.assert({}));
+                    const parts = value.split(';');
+                    layer.filename = parts[0];
+                    if (parts.length > 1) {
+                        layer.duration = parseInt(parts[1], 10);
+                    }
+                    if (parts.length > 2) {
+                        const rotationFlags = parseInt(parts[2], 10);
+                        if (rotationFlags > 0) {
+                            layer.rotation = {
+                                tilt: (rotationFlags & 1) !== 0,
+                                spin: (rotationFlags & 2) !== 0,
+                            };
+                        }
+                    }
+                    break;
+                }
+                case 'v': this.#getBGLegacyMovieInfo().filename = value; break;
+                case 'vo': this.#getBGLegacyMovieInfo().offset = parseInt(value, 10); break;
 
+                // Compat
+                case 'ver':
+                    this.#ksh_version = value;
+                    this.#getCompatInfo().ksh_version = value;
+                    break;
+                
+                default: {
+                    const ksh_unknown_info = this.#getKSHUnknownInfo();
+                    const unknown_meta = ksh_unknown_info.meta ?? (ksh_unknown_info.meta = {});
+                    unknown_meta[key] = value;
+                }
+            }
+        }
     }
 
-    toKSON() : KSON {
+    #processBody() {
+        this.#beat_info.bpm.push([0, this.#initial_bpm]);
+        this.#beat_info.time_sig.push([0, this.#initial_time_sig]);
+
+        let pulse = 0;
+        let time_sig = this.#initial_time_sig;
+
+        for (const measure of this.#ksh.body) {
+            let measure_pulse_len = TICKS_PER_WHOLE_NOTE * time_sig[0];
+            if(measure_pulse_len % time_sig[1] !== 0) {
+                throw new Error(`Invalid time signature for measure on line ${measure.line_no+1}!`);
+            }
+            measure_pulse_len /= time_sig[1];
+
+            const measure_line_count = measure.lines.reduce((x, y) => x + Number(y.type === 'chart'), 0);
+            if(measure_pulse_len % measure_line_count !== 0) {
+                throw new Error(`Invalid measure length for measure on line ${measure.line_no+1}!`);
+            }
+
+            const pulse_per_line = measure_pulse_len / measure_line_count;
+
+            for(const line of measure.lines) {
+                if(line.type === 'chart') {
+                    pulse += pulse_per_line;
+                }
+            }
+        }
+    }
+
+    toKSON(): KSON {
         const kson: KSON = {
             version: KSON_VERSION,
-            meta: this.#getKSONMeta(),
-            beat: this.#getKSONBeat(),
+            meta: this.#meta_info,
+            beat: this.#beat_info,
+            note: this.#note_info,
         };
 
-        const gauge = this.#getKSONGauge();
-        if(gauge) kson.gauge = gauge;
+        if (this.#gauge_info) kson.gauge = this.#gauge_info;
+        if (this.#audio_info) kson.audio = this.#audio_info;
+        if (this.#bg_info) kson.bg = this.#bg_info;
+        if (this.#compat_info) kson.compat = this.#compat_info;
 
         return kson;
-    }
-
-    #getKSONMeta(): MetaInfo {
-        const difficulty = DIFFICULTY_LOOKUP[this.#header_map.get('difficulty') ?? 'light'] ?? 3;
-
-        const meta: MetaInfo = {
-            title: this.#header_map.get('title') ?? '',
-            artist: this.#header_map.get('artist') ?? '',
-            chart_author: this.#header_map.get('effect') ?? '',
-            difficulty,
-            level: parseInt(this.#header_map.get('level') ?? '1', 10),
-            disp_bpm: this.#header_map.get('t') ?? '120',
-        };
-
-        const title_img = this.#header_map.get('title_img');
-        if (title_img) meta.title_img_filename = title_img;
-
-        const artist_img = this.#header_map.get('artist_img');
-        if (artist_img) meta.artist_img_filename = artist_img;
-
-        const jacket = this.#header_map.get('jacket');
-        if (jacket) meta.jacket_filename = jacket;
-
-        const illustrator = this.#header_map.get('illustrator');
-        if (illustrator) meta.jacket_author = illustrator;
-
-        const information = this.#header_map.get('information');
-        if (information) meta.information = information;
-
-        const std_bpm_str = this.#header_map.get('to');
-        if (std_bpm_str) {
-            const std_bpm = parseFloat(std_bpm_str);
-            if (Number.isFinite(std_bpm) && std_bpm > 0) {
-                meta.std_bpm = std_bpm;
-            }
-        }
-
-        return meta;
-    }
-
-    #getKSONBeat(): BeatInfo {
-        throw new Error("Not yet implemented!");
-    }
-    
-    #getKSONGauge(): GaugeInfo | null {
-        const total_str = this.#header_map.get('total');
-        if(!total_str) return null;
-
-        const total = parseInt(total_str, 10);
-        if(!Number.isSafeInteger(total) || total === 0) return null;
-
-        return { total };
     }
 }
