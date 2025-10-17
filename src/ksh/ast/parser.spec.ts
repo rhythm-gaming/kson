@@ -5,7 +5,7 @@ import { parseKSH } from "./parser.js";
 
 describe("ksh/ast/parser", function() {
     describe("parseKSH", function() {
-        it("should correctly parse `testcase/01-nov.ksh`", async() => {
+        it("should correctly parse `testcase/01-nov.ksh`", async function() {
             const data = await readTestData('chart/testcase/01-nov.ksh');
             const {header, body, footer} = parseKSH(data);
             

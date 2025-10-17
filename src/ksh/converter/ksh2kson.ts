@@ -1,6 +1,6 @@
 import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo } from "../../kson/index.js";
-import { difficultyToInt, TICKS_PER_WHOLE_NOTE } from "./common.js";
-import { KSH, stringifyLine } from "../ast/index.js";
+import { normalizeDifficulty, TICKS_PER_WHOLE_NOTE } from "./common.js";
+import { ChartLine, CommentLine, KSH, Measure, OptionLine, stringifyLine, UnknownLine } from "../ast/index.js";
 
 function parseTimeSig(value: string): TimeSig {
     const parts = value.split('/');
@@ -14,6 +14,33 @@ function parseTimeSig(value: string): TimeSig {
     }
 
     return [n, d];
+}
+
+/**
+ * Get the time signature specified at the beginning of the measure.
+ * 
+ * This function considers all option lines before the first chart line,
+ * which is a little bit more lax than the spec.
+ * 
+ * @param measure
+ * @returns 
+ */
+function getInitialTimeSig({lines}: Measure): TimeSig|null {
+    for(const line of lines) {
+        if(line.type === 'chart') return null;
+        if(line.type !== 'option') continue;
+        if(line.key !== 'beat') continue;
+
+        return parseTimeSig(line.value);
+    }
+    
+    return null;
+}
+
+interface BodyProcessState {
+    pulse: number;
+    time_sig: TimeSig;
+    next_time_sig: TimeSig;
 }
 
 export class KSH2KSONConverter {
@@ -41,6 +68,7 @@ export class KSH2KSONConverter {
     #compat_info: CompatInfo | null = null;
     readonly #note_info: NoteInfo = {};
 
+    // eslint-disable-next-line no-unused-private-class-members
     #ksh_version: string | null = null;
     #initial_bpm: number = 120.0;
     #initial_time_sig: TimeSig = [4, 4];
@@ -137,16 +165,16 @@ export class KSH2KSONConverter {
 
             switch (key) {
                 // Meta
-                case 'title':       this.#meta_info.title               = value;                  break;
-                case 'title_img':   this.#meta_info.title_img_filename  = value;                  break;
-                case 'artist':      this.#meta_info.artist              = value;                  break;
-                case 'artist_img':  this.#meta_info.artist_img_filename = value;                  break;
-                case 'effect':      this.#meta_info.chart_author        = value;                  break;
-                case 'jacket':      this.#meta_info.jacket_filename     = value;                  break;
-                case 'illustrator': this.#meta_info.jacket_author       = value;                  break;
-                case 'difficulty':  this.#meta_info.difficulty          = difficultyToInt(value); break;
-                case 'level':       this.#meta_info.level               = parseInt(value, 10);    break;
-                case 'information': this.#meta_info.information         = value;                  break;
+                case 'title':       this.#meta_info.title               = value;                      break;
+                case 'title_img':   this.#meta_info.title_img_filename  = value;                      break;
+                case 'artist':      this.#meta_info.artist              = value;                      break;
+                case 'artist_img':  this.#meta_info.artist_img_filename = value;                      break;
+                case 'effect':      this.#meta_info.chart_author        = value;                      break;
+                case 'jacket':      this.#meta_info.jacket_filename     = value;                      break;
+                case 'illustrator': this.#meta_info.jacket_author       = value;                      break;
+                case 'difficulty':  this.#meta_info.difficulty          = normalizeDifficulty(value); break;
+                case 'level':       this.#meta_info.level               = parseInt(value, 10);        break;
+                case 'information': this.#meta_info.information         = value;                      break;
 
                 // Beat
                 case 't':
@@ -171,8 +199,8 @@ export class KSH2KSONConverter {
                     break;
                 }
                 case 'mvol': {
-                    let vol = parseInt(value, 10) / 100.0;
-                    if (this.#ksh_version === null) vol *= 0.6;
+                    const vol = parseInt(value, 10) / 100.0;
+                    // if (this.#ksh_version === null) vol *= 0.6;
                     this.#getBGMInfo().vol = vol;
                     break;
                 }
@@ -244,11 +272,19 @@ export class KSH2KSONConverter {
         this.#beat_info.bpm.push([0, this.#initial_bpm]);
         this.#beat_info.time_sig.push([0, this.#initial_time_sig]);
 
+        const state: BodyProcessState = {
+            pulse: 0,
+            time_sig: this.#initial_time_sig,
+            next_time_sig: this.#initial_time_sig,
+        };
+
         let pulse = 0;
         let time_sig = this.#initial_time_sig;
         let next_time_sig = time_sig;
 
         for (const measure of this.#ksh.body) {
+            this.#processMeasure(state, measure);
+
             let measure_pulse_len = TICKS_PER_WHOLE_NOTE * time_sig[0];
             if(measure_pulse_len % time_sig[1] !== 0) {
                 throw new Error(`Invalid time signature for measure on line ${measure.line_no+1}!`);
@@ -298,6 +334,66 @@ export class KSH2KSONConverter {
 
             time_sig = next_time_sig;
         }
+    }
+
+    #processMeasure(state: BodyProcessState, measure: Measure) {
+        const time_sig = getInitialTimeSig(measure) ?? state.time_sig;
+        state.next_time_sig = time_sig;
+
+        let measure_pulse_len = TICKS_PER_WHOLE_NOTE * time_sig[0];
+        if(measure_pulse_len % time_sig[1] !== 0) {
+            throw new Error(`Invalid time signature for measure on line ${measure.line_no+1}!`);
+        }
+        measure_pulse_len /= time_sig[1];
+
+        const measure_line_count = measure.lines.reduce((x, y) => x + Number(y.type === 'chart'), 0);
+        if(measure_line_count > 0 && measure_pulse_len % measure_line_count !== 0) {
+            throw new Error(`Invalid measure length for measure on line ${measure.line_no+1}!`);
+        }
+
+        const pulse_per_line = measure_line_count > 0 ? measure_pulse_len / measure_line_count : 0;
+        for(const line of measure.lines) {
+            switch(line.type) {
+                case 'chart': {
+                    this.#processMeasureChart(state, line);
+                    state.pulse += pulse_per_line;
+                    break;
+                }
+                case 'option': this.#processMeasureOption(state, line); break;
+                case 'comment': this.#processMeasureComment(state, line); break;
+                case 'unknown': this.#processMeasureUnknown(state, line); break;
+                default: throw new Error(`Unknown line type: ${(line as {type: string}).type}`);
+            }
+
+            state.pulse += pulse_per_line;
+        }
+
+        state.time_sig = state.next_time_sig;
+    }
+
+    #processMeasureChart(state: BodyProcessState, line: ChartLine) {}
+
+    #processMeasureOption(state: BodyProcessState, line: OptionLine) {
+        switch(line.key) {
+            case 'beat': {
+                state.next_time_sig = parseTimeSig(line.value);
+                break;
+            }
+        }
+    }
+
+    #processMeasureComment(state: BodyProcessState, line: CommentLine) {
+        const editor_info = this.#getEditorInfo();
+        const comments = editor_info.comment ?? (editor_info.comment = []);
+
+        comments.push([state.pulse, line.comment]);
+    }
+
+    #processMeasureUnknown(state: BodyProcessState, line: UnknownLine) {
+        const ksh_unknown_info = this.#getKSHUnknownInfo();
+        const unknown_lines = ksh_unknown_info.line ?? (ksh_unknown_info.line = []);
+
+        unknown_lines.push([state.pulse, stringifyLine(line)]);
     }
 
     toKSON(): KSON {
