@@ -1,5 +1,5 @@
-import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo } from "../../kson/index.js";
-import { normalizeDifficulty, TICKS_PER_WHOLE_NOTE } from "./common.js";
+import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo, GraphSectionPoint, ButtonLane, LaserLane } from "../../kson/index.js";
+import { LASER_CHAR_DICT, normalizeDifficulty, SLAM_THRESHOLD, PULSES_PER_WHOLE, LASER_POS_MAX } from "./common.js";
 import { ChartLine, CommentLine, KSH, Measure, OptionLine, stringifyLine, UnknownLine } from "../ast/index.js";
 
 function parseTimeSig(value: string): TimeSig {
@@ -37,10 +37,45 @@ function getInitialTimeSig({lines}: Measure): TimeSig|null {
     return null;
 }
 
+interface ButtonState {
+    long_y: number|null;
+}
+
+function createButtonState(): ButtonState {
+    return { long_y: null };
+}
+
+interface LaserState {
+    curr_section: { y: number; v: GraphSectionPoint[]; w: number; }|null;
+    wide: boolean;
+}
+
+function createLaserState(): LaserState {
+    return { curr_section: null, wide: false };
+}
+
 interface BodyProcessState {
     pulse: number;
+    
     time_sig: TimeSig;
     next_time_sig: TimeSig;
+
+    bt_states: [ButtonState, ButtonState, ButtonState, ButtonState];
+    fx_states: [ButtonState, ButtonState];
+    laser_states: [LaserState, LaserState];
+}
+
+function createBodyProcessState(): BodyProcessState {
+    return {
+        pulse: 0,
+
+        time_sig: [4, 4],
+        next_time_sig: [4, 4],
+
+        bt_states: [createButtonState(), createButtonState(), createButtonState(), createButtonState()],
+        fx_states: [createButtonState(), createButtonState()],
+        laser_states: [createLaserState(), createLaserState()],
+    };
 }
 
 export class KSH2KSONConverter {
@@ -72,9 +107,6 @@ export class KSH2KSONConverter {
         fx: [[], []],
         laser: [[], []],
     };
-
-    #bt_long_note_y: (number | null)[] = [null, null, null, null];
-    #fx_long_note_y: (number | null)[] = [null, null];
 
     #initial_bpm: number = 120.0;
     #initial_time_sig: TimeSig = [4, 4];
@@ -200,14 +232,12 @@ export class KSH2KSONConverter {
                     const files = value.split(';');
                     this.#getBGMInfo().filename = files[0];
                     if (files.length > 1) {
-                        this.#getBGMLegacyInfo().fp_filenames = files;
+                        this.#getBGMLegacyInfo().fp_filenames = files.slice(1);
                     }
                     break;
                 }
                 case 'mvol': {
-                    const vol = parseInt(value, 10) / 100.0;
-                    // if (this.#ksh_version === null) vol *= 0.6;
-                    this.#getBGMInfo().vol = vol;
+                    this.#getBGMInfo().vol = parseInt(value, 10) / 100.0;
                     break;
                 }
                 case 'o': this.#getBGMInfo().offset = parseInt(value, 10); break;
@@ -271,6 +301,14 @@ export class KSH2KSONConverter {
                 }
             }
         }
+
+        const ver = this.#compat_info?.ksh_version;
+        if (ver == null) {
+            const bgm = this.#audio_info?.bgm;
+            if (bgm?.vol != null) {
+                bgm.vol *= 0.6;
+            }
+        }
     }
 
     #processBody() {
@@ -278,11 +316,8 @@ export class KSH2KSONConverter {
         this.#beat_info.time_sig.push([0, this.#initial_time_sig]);
         this.#beat_info.scroll_speed.push([0, [1.0, 1.0]]);
 
-        const state: BodyProcessState = {
-            pulse: 0,
-            time_sig: this.#initial_time_sig,
-            next_time_sig: this.#initial_time_sig,
-        };
+        const state: BodyProcessState = createBodyProcessState();
+        state.time_sig = state.next_time_sig = this.#initial_time_sig;
 
         for (let i=0; i<this.#ksh.body.length; ++i) {
             this.#processMeasure(state, this.#ksh.body[i], i);
@@ -292,19 +327,25 @@ export class KSH2KSONConverter {
         const final_pulse = state.pulse;
 
         for(let i=0; i<4; ++i) {
-            const y = this.#bt_long_note_y[i];
+            const y = state.bt_states[i].long_y;
             if(y == null) continue;
             
             this.#note_info.bt[i].push([y, final_pulse - y]);
-            this.#bt_long_note_y[i] = null;
         }
         
         for(let i=0; i<2; ++i) {
-            const y = this.#fx_long_note_y[i];
+            const y = state.fx_states[i].long_y;
             if(y == null) continue;
             
             this.#note_info.fx.push([y, final_pulse - y]);
-            this.#fx_long_note_y[i] = null;
+        }
+
+        // Finalize laser sections
+        for (let i = 0; i < 2; i++) {
+            const section = state.laser_states[i].curr_section;
+            if(section == null) continue;
+            
+            this.#note_info.laser[i].push([section.y, section.v, section.w]);
         }
     }
 
@@ -324,7 +365,7 @@ export class KSH2KSONConverter {
 
         const time_sig = state.next_time_sig = state.time_sig;
 
-        let measure_pulse_len = TICKS_PER_WHOLE_NOTE * time_sig[0];
+        let measure_pulse_len = PULSES_PER_WHOLE * time_sig[0];
         if(measure_pulse_len % time_sig[1] !== 0) {
             throw new Error(`Invalid time signature for measure on line ${measure.line_no+1}!`);
         }
@@ -359,51 +400,78 @@ export class KSH2KSONConverter {
     }
 
     #processMeasureChart(state: BodyProcessState, line: ChartLine) {
-        // BT notes
-        for (let i = 0; i < 4; i++) {
-            const char = line.bt[i];
-            const y = this.#bt_long_note_y[i];
-            const is_long = y !== null;
-
-            if (char === '2') { // Long note
-                if (!is_long) {
-                    this.#bt_long_note_y[i] = state.pulse;
-                }
-            } else {
-                if (is_long) { // End of long note
-                    this.#note_info.bt[i].push([y, state.pulse - y]);
-                    this.#bt_long_note_y[i] = null;
-                }
-                if (char === '1') { // Chip note
-                    this.#note_info.bt[i].push(state.pulse);
-                }
-            }
+        for (let i = 0; i < 4; ++i) {
+            this.#processButtonNote(state.pulse, state.bt_states[i], this.#note_info.bt[i], false, line.bt[i]);
         }
 
-        // FX notes
-        for (let i = 0; i < 2; i++) {
-            const char = line.fx[i];
-            const y = this.#fx_long_note_y[i];
-            const is_long = y !== null;
-
-            // In current KSH, '1' is long note. Legacy used other chars.
-            // '0' is empty, '2' is chip. Anything else is long.
-            if (char !== '0' && char !== '2') { // Long note
-                if(!is_long) {
-                    this.#fx_long_note_y[i] = state.pulse;
-                }
-            } else {
-                if (is_long) { // End of long note
-                    this.#note_info.fx[i].push([y, state.pulse - y]);
-                    this.#fx_long_note_y[i] = null;
-                }
-                if (char === '2') { // Chip note
-                    this.#note_info.fx[i].push(state.pulse);
-                }
-            }
+        for (let i = 0; i < 2; ++i) {
+            this.#processButtonNote(state.pulse, state.fx_states[i], this.#note_info.fx[i], true, line.fx[i]);
         }
 
-        // TODO: Laser notes
+        for (let i=0; i < 2; ++i) {
+            this.#processLaser(state.pulse, state.laser_states[i], this.#note_info.laser[i], line.laser[i]);
+        }
+    }
+
+    #processButtonNote(pulse: number, state: ButtonState, target: ButtonLane, is_fx: boolean, ch: string) {
+        const prev_long_y = state.long_y;
+        const is_prev_long = prev_long_y !== null;
+        const is_curr_long = is_fx ? (ch !== '0' && ch !== '2') : (ch === '2');
+        const is_curr_chip = is_fx ? (ch === '2') : (ch === '1');
+
+        // Long note
+        if(is_curr_long) {
+            if(!is_prev_long) state.long_y = pulse;
+        } else {
+            if(is_prev_long) {
+                target.push([prev_long_y, pulse - prev_long_y]);
+                state.long_y = null;
+            }
+            if (is_curr_chip) {
+                target.push(pulse);
+            }
+        }
+    }
+
+    #processLaser(pulse: number, state: LaserState, target: LaserLane, ch: string) {
+        if (ch === '-') {
+            if (state.curr_section) {
+                target.push([state.curr_section.y, state.curr_section.v, state.curr_section.w]);
+                state.curr_section = null;
+            }
+            return;
+        }
+
+        if (ch === ':') {
+            return;
+        }
+
+        const value_index = LASER_CHAR_DICT.get(ch);
+        if (value_index == null) {
+            return;
+        }
+        
+        const value = value_index / LASER_POS_MAX;
+
+        if (!state.curr_section) {
+            state.curr_section = {
+                y: pulse,
+                v: [[0, [value, value]]],
+                w: state.wide ? 2 : 1,
+            };
+            state.wide = false;
+            return;
+        }
+
+        const ry = pulse - state.curr_section.y;
+        const last_point = state.curr_section.v.at(-1);
+        if(last_point == null) throw new Error(`processLaser internal error: unexpected laser state at pulse=${pulse}`);
+
+        if (ry <= last_point[0] + SLAM_THRESHOLD) {
+            last_point[1][1] = value;
+        } else {
+            state.curr_section.v.push([ry, [value, value]]);
+        }
     }
 
     #processMeasureOption(state: BodyProcessState, line: OptionLine, first_chart_line_passed: boolean) {
@@ -425,6 +493,14 @@ export class KSH2KSONConverter {
                 }
                 break;
             }
+            case 'laserrange_l': {
+                state.laser_states[0].wide = value === '2x';
+                break;
+            }
+            case 'laserrange_r': {
+                state.laser_states[1].wide = value === '2x';
+                break;
+            }
             case 'chokkakuvol': {
                 const vol = parseInt(value, 10) / 100.0;
                 const laser_vol = this.#getKeySoundLaser().vol ?? (this.#getKeySoundLaser().vol = []);
@@ -440,6 +516,12 @@ export class KSH2KSONConverter {
             // TODO: tilt
             // TODO: zoom_*, center_split
             // TODO: fx-*, laserrange_*, filtertype, etc.
+            default: {
+                const ksh_unknown_info = this.#getKSHUnknownInfo();
+                const unknown_options = ksh_unknown_info.option ?? (ksh_unknown_info.option = {});
+                const values = unknown_options[key] ?? (unknown_options[key] = []);
+                values.push([state.pulse, value]);
+            }
         }
     }
 

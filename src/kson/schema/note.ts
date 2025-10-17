@@ -9,7 +9,8 @@ export const ButtonNote = exportType(type([
 ]));
 export type ButtonNote = typeof ButtonNote.infer;
 
-const ButtonLane = type(Uint.or(ButtonNote)).array();
+export const ButtonLane = exportType(type(Uint.or(ButtonNote)).array());
+export type ButtonLane = typeof ButtonLane.infer;
 
 export const LaserSection = exportType(type([
     Uint,
@@ -18,7 +19,8 @@ export const LaserSection = exportType(type([
 ]));
 export type LaserSection = typeof LaserSection.infer;
 
-const LaserLane = LaserSection.array();
+export const LaserLane = exportType(LaserSection.array());
+export type LaserLane = typeof LaserLane.infer;
 
 export const NoteInfo = exportType(type({
     bt: type([ButtonLane, ButtonLane, ButtonLane, ButtonLane]).default(() => [[], [], [], []]),
