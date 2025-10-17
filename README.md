@@ -37,7 +37,7 @@ import * as fs from "node:fs/promises";
 const ksh_file = await fs.readFile("chart.ksh", 'utf-8');
 const kson: KSON = parseKSH(ksh_file);
 
-// Modifiy the chart's title.
+// Modify the chart's title.
 
 kson.meta.title = "Good morning!";
 
