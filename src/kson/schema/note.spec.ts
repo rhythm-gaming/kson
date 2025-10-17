@@ -85,8 +85,14 @@ describe("kson/schema/note", function() {
     });
 
     describe("NoteInfo", function() {
+        const EMPTY_NOTES: NoteInfo = {
+            bt: [[], [], [], []],
+            fx: [[], []],
+            laser: [[], []],
+        };
+
         it("should accept an empty object", function() {
-            assert.deepStrictEqual(NoteInfo.assert({}), {});
+            assert.deepStrictEqual(NoteInfo.assert({}), EMPTY_NOTES);
         });
 
         it("should accept valid bt, fx, laser fields", function() {
@@ -134,24 +140,24 @@ describe("kson/schema/note", function() {
         });
 
         it("should accept only a bt field", function() {
-            const value: NoteInfo = {
+            const value: Partial<NoteInfo> = {
                 bt: [[], [], [], []],
             };
-            assert.deepStrictEqual(NoteInfo.assert(value), value);
+            assert.deepStrictEqual(NoteInfo.assert(value), EMPTY_NOTES);
         });
         
         it("should accept only an fx field", function() {
-            const value: NoteInfo = {
+            const value: Partial<NoteInfo> = {
                 fx: [[], []],
             };
-            assert.deepStrictEqual(NoteInfo.assert(value), value);
+            assert.deepStrictEqual(NoteInfo.assert(value), EMPTY_NOTES);
         });
 
         it("should accept only a laser field", function() {
-            const value: NoteInfo = {
+            const value: Partial<NoteInfo> = {
                 laser: [[], []],
             };
-            assert.deepStrictEqual(NoteInfo.assert(value), value);
+            assert.deepStrictEqual(NoteInfo.assert(value), EMPTY_NOTES);
         });
 
         it("should reject if bt has incorrect number of lanes", function() {

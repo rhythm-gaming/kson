@@ -21,8 +21,8 @@ export type LaserSection = typeof LaserSection.infer;
 const LaserLane = LaserSection.array();
 
 export const NoteInfo = exportType(type({
-    "bt?": [ButtonLane, ButtonLane, ButtonLane, ButtonLane],
-    "fx?": [ButtonLane, ButtonLane],
-    "laser?": [LaserLane, LaserLane],
+    bt: type([ButtonLane, ButtonLane, ButtonLane, ButtonLane]).default(() => [[], [], [], []]),
+    fx: type([ButtonLane, ButtonLane]).default(() => [[], []]),
+    laser: type([LaserLane, LaserLane]).default(() => [[], []]),
 }));
 export type NoteInfo = typeof NoteInfo.infer;

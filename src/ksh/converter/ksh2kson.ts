@@ -1,4 +1,4 @@
-import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo } from "../../kson/index.js";
+import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo, ButtonNote } from "../../kson/index.js";
 import { normalizeDifficulty, TICKS_PER_WHOLE_NOTE } from "./common.js";
 import { ChartLine, CommentLine, KSH, Measure, OptionLine, stringifyLine, UnknownLine } from "../ast/index.js";
 
@@ -66,10 +66,16 @@ export class KSH2KSONConverter {
     #bg_info: BGInfo | null = null;
     #editor_info: EditorInfo | null = null;
     #compat_info: CompatInfo | null = null;
-    readonly #note_info: NoteInfo = {};
 
-    // eslint-disable-next-line no-unused-private-class-members
-    #ksh_version: string | null = null;
+    readonly #note_info: NoteInfo = {
+        bt: [[], [], [], []],
+        fx: [[], []],
+        laser: [[], []],
+    };
+
+    #bt_long_note_y: (number | null)[] = [null, null, null, null];
+    #fx_long_note_y: (number | null)[] = [null, null];
+
     #initial_bpm: number = 120.0;
     #initial_time_sig: TimeSig = [4, 4];
 
@@ -255,7 +261,6 @@ export class KSH2KSONConverter {
 
                 // Compat
                 case 'ver':
-                    this.#ksh_version = value;
                     this.#getCompatInfo().ksh_version = value;
                     break;
                 
@@ -271,6 +276,7 @@ export class KSH2KSONConverter {
     #processBody() {
         this.#beat_info.bpm.push([0, this.#initial_bpm]);
         this.#beat_info.time_sig.push([0, this.#initial_time_sig]);
+        this.#beat_info.scroll_speed.push([0, [1.0, 1.0]]);
 
         const state: BodyProcessState = {
             pulse: 0,
@@ -278,67 +284,45 @@ export class KSH2KSONConverter {
             next_time_sig: this.#initial_time_sig,
         };
 
-        let pulse = 0;
-        let time_sig = this.#initial_time_sig;
-        let next_time_sig = time_sig;
+        for (let i=0; i<this.#ksh.body.length; ++i) {
+            this.#processMeasure(state, this.#ksh.body[i], i);
+        }
 
-        for (const measure of this.#ksh.body) {
-            this.#processMeasure(state, measure);
+        // Finalize any open long notes.
+        const final_pulse = state.pulse;
 
-            let measure_pulse_len = TICKS_PER_WHOLE_NOTE * time_sig[0];
-            if(measure_pulse_len % time_sig[1] !== 0) {
-                throw new Error(`Invalid time signature for measure on line ${measure.line_no+1}!`);
-            }
-            measure_pulse_len /= time_sig[1];
-
-            const measure_line_count = measure.lines.reduce((x, y) => x + Number(y.type === 'chart'), 0);
-            if(measure_pulse_len % measure_line_count !== 0) {
-                throw new Error(`Invalid measure length for measure on line ${measure.line_no+1}!`);
-            }
-
-            const pulse_per_line = measure_pulse_len / measure_line_count;
-
-            for(const line of measure.lines) {
-                switch(line.type) {
-                    case 'chart': {
-                        pulse += pulse_per_line;
-                        break;
-                    }
-                    case 'option': {
-                        switch(line.key) {
-                            case 'beat': {
-                                next_time_sig = parseTimeSig(line.value);
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                    case 'comment': {
-                        const editor_info = this.#getEditorInfo();
-                        const comments = editor_info.comment ?? (editor_info.comment = []);
-
-                        comments.push([pulse, line.comment]);
-
-                        break;
-                    }
-                    case 'unknown': {
-                        const ksh_unknown_info = this.#getKSHUnknownInfo();
-                        const unknown_lines = ksh_unknown_info.line ?? (ksh_unknown_info.line = []);
-
-                        unknown_lines.push([pulse, stringifyLine(line)]);
-
-                        break;
-                    }
-                }
-            }
-
-            time_sig = next_time_sig;
+        for(let i=0; i<4; ++i) {
+            const y = this.#bt_long_note_y[i];
+            if(y == null) continue;
+            
+            this.#note_info.bt[i].push([y, final_pulse - y]);
+            this.#bt_long_note_y[i] = null;
+        }
+        
+        for(let i=0; i<2; ++i) {
+            const y = this.#fx_long_note_y[i];
+            if(y == null) continue;
+            
+            this.#note_info.fx.push([y, final_pulse - y]);
+            this.#fx_long_note_y[i] = null;
         }
     }
 
-    #processMeasure(state: BodyProcessState, measure: Measure) {
-        const time_sig = getInitialTimeSig(measure) ?? state.time_sig;
-        state.next_time_sig = time_sig;
+    #processMeasure(state: BodyProcessState, measure: Measure, measure_idx: number) {
+        const time_sig_from_measure = getInitialTimeSig(measure);
+        if(time_sig_from_measure) {
+            state.time_sig = time_sig_from_measure;
+            const last_sig = this.#beat_info.time_sig.at(-1);
+
+            if(!last_sig || last_sig[0] !== measure_idx) {
+                if(last_sig?.[0] === measure_idx) this.#beat_info.time_sig.pop();
+                this.#beat_info.time_sig.push([measure_idx, state.time_sig]);
+            } else {
+                last_sig[1] = state.time_sig;
+            }
+        }
+
+        const time_sig = state.next_time_sig = state.time_sig;
 
         let measure_pulse_len = TICKS_PER_WHOLE_NOTE * time_sig[0];
         if(measure_pulse_len % time_sig[1] !== 0) {
@@ -352,14 +336,17 @@ export class KSH2KSONConverter {
         }
 
         const pulse_per_line = measure_line_count > 0 ? measure_pulse_len / measure_line_count : 0;
+        let first_chart_line_passed = false;
+
         for(const line of measure.lines) {
             switch(line.type) {
                 case 'chart': {
+                    first_chart_line_passed = true;
                     this.#processMeasureChart(state, line);
                     state.pulse += pulse_per_line;
                     break;
                 }
-                case 'option': this.#processMeasureOption(state, line); break;
+                case 'option': this.#processMeasureOption(state, line, first_chart_line_passed); break;
                 case 'comment': this.#processMeasureComment(state, line); break;
                 case 'unknown': this.#processMeasureUnknown(state, line); break;
                 default: throw new Error(`Unknown line type: ${(line as {type: string}).type}`);
@@ -371,14 +358,88 @@ export class KSH2KSONConverter {
         state.time_sig = state.next_time_sig;
     }
 
-    #processMeasureChart(state: BodyProcessState, line: ChartLine) {}
+    #processMeasureChart(state: BodyProcessState, line: ChartLine) {
+        // BT notes
+        for (let i = 0; i < 4; i++) {
+            const char = line.bt[i];
+            const y = this.#bt_long_note_y[i];
+            const is_long = y !== null;
 
-    #processMeasureOption(state: BodyProcessState, line: OptionLine) {
-        switch(line.key) {
+            if (char === '2') { // Long note
+                if (!is_long) {
+                    this.#bt_long_note_y[i] = state.pulse;
+                }
+            } else {
+                if (is_long) { // End of long note
+                    this.#note_info.bt[i].push([y, state.pulse - y]);
+                    this.#bt_long_note_y[i] = null;
+                }
+                if (char === '1') { // Chip note
+                    this.#note_info.bt[i].push(state.pulse);
+                }
+            }
+        }
+
+        // FX notes
+        for (let i = 0; i < 2; i++) {
+            const char = line.fx[i];
+            const y = this.#fx_long_note_y[i];
+            const is_long = y !== null;
+
+            // In current KSH, '1' is long note. Legacy used other chars.
+            // '0' is empty, '2' is chip. Anything else is long.
+            if (char !== '0' && char !== '2') { // Long note
+                if(!is_long) {
+                    this.#fx_long_note_y[i] = state.pulse;
+                }
+            } else {
+                if (is_long) { // End of long note
+                    this.#note_info.fx[i].push([y, state.pulse - y]);
+                    this.#fx_long_note_y[i] = null;
+                }
+                if (char === '2') { // Chip note
+                    this.#note_info.fx[i].push(state.pulse);
+                }
+            }
+        }
+
+        // TODO: Laser notes
+    }
+
+    #processMeasureOption(state: BodyProcessState, line: OptionLine, first_chart_line_passed: boolean) {
+        const {key, value} = line;
+        switch(key) {
             case 'beat': {
-                state.next_time_sig = parseTimeSig(line.value);
+                if(first_chart_line_passed) {
+                    state.next_time_sig = parseTimeSig(line.value);
+                }
                 break;
             }
+            case 't': {
+                const new_bpm = parseFloat(value);
+                const last_bpm = this.#beat_info.bpm.at(-1);
+                if(last_bpm?.[0] === state.pulse) {
+                    last_bpm[1] = new_bpm;
+                } else {
+                    this.#beat_info.bpm.push([state.pulse, new_bpm]);
+                }
+                break;
+            }
+            case 'chokkakuvol': {
+                const vol = parseInt(value, 10) / 100.0;
+                const laser_vol = this.#getKeySoundLaser().vol ?? (this.#getKeySoundLaser().vol = []);
+                const last_vol = laser_vol.at(-1);
+                if(last_vol?.[0] === state.pulse) {
+                    last_vol[1] = vol;
+                } else {
+                    laser_vol.push([state.pulse, vol]);
+                }
+                break;
+            }
+            // TODO: stop
+            // TODO: tilt
+            // TODO: zoom_*, center_split
+            // TODO: fx-*, laserrange_*, filtertype, etc.
         }
     }
 
