@@ -58,6 +58,40 @@ Consult the KSON specification for how to navigate through a `KSON` object.
 - [ ] Writing KSH
 - [X] Writing KSON
 
+#### Reading KSH Progression
+
+- [ ] Header parsing
+    - [x] `title`, `artist`, `effect`, `illustrator`
+    - [x] `title_img`, `artist_img`, `jacket`
+    - [x] `difficulty`, `level`
+    - [x] `t`, `beat`
+    - [x] `o`, `m`, `mvol`
+    - [x] `total`
+    - [x] `po`, `plength`
+    - [x] `bg`, `layer`, `v`, `vo`
+    - [x] `chokkakuvol`, `chokkakuautovol`, `pfilterdelay`
+    - [ ] `filtertype`, `pfiltergain`
+    - [x] `ver`, `information`
+- [ ] Body parsing
+    - [ ] Chart lines
+        - [x] BT notes (chip, long)
+        - [x] FX notes (chip, long)
+        - [ ] FX notes (legacy effects)
+        - [x] Laser notes (linear, slam)
+        - [ ] Laser notes (spin)
+    - [ ] Option lines
+        - [x] `t`, `beat`
+        - [x] `chokkakuvol`
+        - [x] `laserrange_l`, `laserrange_r`
+        - [ ] `stop`
+        - [ ] `tilt`
+        - [ ] `zoom_*`, `center_split`
+        - [ ] `fx-*`
+        - [ ] `filtertype`
+- [ ] Footer parsing
+    - [ ] `#define_fx`
+    - [ ] `#define_filter`
+
 ## Helpful Resources
 
 - [KSH Chart File Format Specification](https://github.com/m4saka/ksm-chart-format-spec/blob/master/ksh_format.md)
