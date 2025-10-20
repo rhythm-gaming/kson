@@ -1,4 +1,7 @@
 import { KSH, KSHLine } from "./ast.js";
+import { stringifyLaser } from "./laser.js";
+import { stringifyBT, stringifyFX } from "./note.js";
+import { stringifySpinInfo } from "./spin.js";
 
 /**
  * Stringifies a line from a KSH AST.
@@ -10,9 +13,12 @@ export function stringifyLine(line: KSHLine): string {
         case 'option':
             return `${line.key}=${line.value}`;
         case 'chart': {
-            let result = `${line.bt}|${line.fx}|${line.laser}`;
+            const bt = stringifyBT(line.bt);
+            const fx = stringifyFX(line.fx, line.fx_legacy);
+            const laser = stringifyLaser(line.laser);
+            let result = `${bt}|${fx}|${laser}`;
             if (line.spin) {
-                result += `${line.spin.type}${line.spin.duration}`;
+                result += stringifySpinInfo(line.spin);
             }
             return result;
         }

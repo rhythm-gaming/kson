@@ -1,6 +1,9 @@
 import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo, GraphSectionPoint, ButtonLane, LaserLane } from "../../kson/index.js";
-import { LASER_CHAR_DICT, normalizeDifficulty, SLAM_THRESHOLD, PULSES_PER_WHOLE, LASER_POS_MAX } from "./common.js";
+import { normalizeDifficulty } from "./common.js";
 import { ChartLine, CommentLine, KSH, Measure, OptionLine, stringifyLine, UnknownLine } from "../ast/index.js";
+import { PULSES_PER_WHOLE, SLAM_THRESHOLD } from "../ast/pulse.js";
+import { NoteType } from "../ast/note.js";
+import { LASER_CONTINUE, LASER_POS_MAX, LaserInd } from "../ast/laser.js";
 
 function parseTimeSig(value: string): TimeSig {
     const parts = value.split('/');
@@ -401,11 +404,11 @@ export class KSH2KSONConverter {
 
     #processMeasureChart(state: BodyProcessState, line: ChartLine) {
         for (let i = 0; i < 4; ++i) {
-            this.#processButtonNote(state.pulse, state.bt_states[i], this.#note_info.bt[i], false, line.bt[i]);
+            this.#processButtonNote(state.pulse, state.bt_states[i], this.#note_info.bt[i], line.bt[i]);
         }
 
         for (let i = 0; i < 2; ++i) {
-            this.#processButtonNote(state.pulse, state.fx_states[i], this.#note_info.fx[i], true, line.fx[i]);
+            this.#processButtonNote(state.pulse, state.fx_states[i], this.#note_info.fx[i], line.fx[i]);
         }
 
         for (let i=0; i < 2; ++i) {
@@ -413,28 +416,26 @@ export class KSH2KSONConverter {
         }
     }
 
-    #processButtonNote(pulse: number, state: ButtonState, target: ButtonLane, is_fx: boolean, ch: string) {
+    #processButtonNote(pulse: number, state: ButtonState, target: ButtonLane, note: NoteType) {
         const prev_long_y = state.long_y;
         const is_prev_long = prev_long_y !== null;
-        const is_curr_long = is_fx ? (ch !== '0' && ch !== '2') : (ch === '2');
-        const is_curr_chip = is_fx ? (ch === '2') : (ch === '1');
 
         // Long note
-        if(is_curr_long) {
+        if(note === NoteType.LONG) {
             if(!is_prev_long) state.long_y = pulse;
         } else {
             if(is_prev_long) {
                 target.push([prev_long_y, pulse - prev_long_y]);
                 state.long_y = null;
             }
-            if (is_curr_chip) {
+            if (note === NoteType.CHIP) {
                 target.push(pulse);
             }
         }
     }
 
-    #processLaser(pulse: number, state: LaserState, target: LaserLane, ch: string) {
-        if (ch === '-') {
+    #processLaser(pulse: number, state: LaserState, target: LaserLane, laser: LaserInd|null) {
+        if (laser === null) {
             if (state.curr_section) {
                 target.push([state.curr_section.y, state.curr_section.v, state.curr_section.w]);
                 state.curr_section = null;
@@ -442,16 +443,11 @@ export class KSH2KSONConverter {
             return;
         }
 
-        if (ch === ':') {
-            return;
-        }
-
-        const value_index = LASER_CHAR_DICT.get(ch);
-        if (value_index == null) {
+        if (laser === LASER_CONTINUE) {
             return;
         }
         
-        const value = value_index / LASER_POS_MAX;
+        const value = laser / LASER_POS_MAX;
 
         if (!state.curr_section) {
             state.curr_section = {

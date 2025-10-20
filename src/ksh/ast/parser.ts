@@ -1,5 +1,10 @@
 import { BarLine, ChartLine, CommentLine, DefinitionLine, HeaderContent, KSH, KSHLine, Measure, MeasureContent, UnknownLine } from "./ast.js";
 
+import { parsePulse } from "./pulse.js";
+import { parseBT, parseFX } from "./note.js";
+import { parseLaser } from "./laser.js";
+import { parseSpinType } from "./spin.js";
+
 const CHART_LINE_REGEX = /^([012]{4})\|(.{2})\|([-:0-9A-Za-o]{2})(?:([@S][<>()])(\d+))?$/;
 const OPTION_LINE_REGEX = /^([^=]+)=(.*)$/;
 const DEFINITION_LINE_REGEX = /^#define_(\S+)\s+(\S+)\s+(.*)$/;
@@ -36,30 +41,30 @@ function parseLine(line: string): KSHLine|null {
     }
 
     const chart_match = line.match(CHART_LINE_REGEX);
-    if (chart_match) {
-        const [, bt, fx, laser, spin_type, spin_duration_str] = chart_match;
-
-        const chart_line: ChartLine = {
-            type: 'chart',
-            bt,
-            fx,
-            laser,
-        };
-
-        if (spin_type && spin_duration_str) {
-            let spin_duration = parseInt(spin_duration_str, 10);
-            if(!Number.isFinite(spin_duration)) spin_duration = 0;
-
-            chart_line.spin = {
-                type: spin_type,
-                duration: spin_duration,
-            };
-        }
-
-        return chart_line;
+    if(!chart_match) {
+        return { type: 'unknown', line } satisfies UnknownLine;
     }
 
-    return { type: 'unknown', line } satisfies UnknownLine;
+    const [, bt, fx, laser, spin_type, spin_duration_str] = chart_match;
+
+    const chart_line: ChartLine = {
+        type: 'chart',
+        ...parseBT(bt),
+        ...parseFX(fx),
+        ...parseLaser(laser),
+    };
+
+    if (spin_type && spin_duration_str) {
+        const parsed_spin_types = parseSpinType(spin_type);
+        if(parsed_spin_types) {
+            chart_line.spin = {
+                ...parsed_spin_types,
+                duration: parsePulse(spin_duration_str, 0),
+            };
+        }
+    }
+
+    return chart_line;
 }
 
 /**

@@ -1,3 +1,7 @@
+import { LaserInd } from "./laser.js";
+import { LegacyFX, NoteType } from "./note.js";
+import { SpinInfo } from "./spin.js";
+
 /** A key-value pair from an option line (e.g., `title=...`). */
 export interface OptionLine {
     readonly type: 'option';
@@ -8,16 +12,12 @@ export interface OptionLine {
 /** A chart line with BT, FX, and laser notes. */
 export interface ChartLine {
     readonly type: 'chart';
-    /** A string of length 4. */
-    bt: string;
-    /** A string of length 2. */
-    fx: string;
-    /** A string of length 2. */
-    laser: string;
-    spin?: {
-        type: string;
-        duration: number;
-    };
+    bt: [NoteType, NoteType, NoteType, NoteType];
+    fx: [NoteType, NoteType];
+    fx_legacy?: [LegacyFX|null, LegacyFX|null];
+
+    laser: [LaserInd|null, LaserInd|null];
+    spin?: SpinInfo;
 }
 
 /** A bar line separator (`--`). */
