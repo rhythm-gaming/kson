@@ -260,9 +260,15 @@ type KnownOptionLine =
     | LegacyFXParamOptionLine
     | FXSoundEffectOptionLine;
 
-export type UnknownOptionLine = BaseOptionLine<Exclude<string, KnownOptionLine['key']>>;
+export interface UnknownOptionLine extends BaseOptionLine<Exclude<string, KnownOptionLine['key']>> {
+    unknown: true;
+}
 
 export type OptionLine = UnknownOptionLine | KnownOptionLine;
+
+export function isUnknownOption(option: OptionLine): option is UnknownOptionLine {
+    return !!((option as {unknown?: true}).unknown);
+}
 
 const DIFFICULTY_ARR = ['light', 'challenge', 'extended', 'infinite'];
 const DIFFICULTY_MAP = Object.freeze(Object.fromEntries(DIFFICULTY_ARR.map((v, i) => [v, i])));
@@ -381,20 +387,17 @@ export function parseOption(key: string, value: string): OptionLine {
             return { ...base, key, fx_lane, effect_name, effect_volume };
         }
         default:
-            return base;
+            return { ...base, unknown: true };
     }
 }
 
-export function stringifyOption(option: OptionLine) {
-    return `${option.key}=${option.raw ?? ""}`
-}
 
-/*
-export function stringifyOption(option: OptionLine) {
-    if(option.raw != null) return `${option.key}=${option.raw}`;
-    
-    let value: string = "";
-    switch(option.key) {
+export function stringifyOption(option: OptionLine): string {
+    if (option.raw != null) return `${option.key}=${option.raw}`;
+    if (isUnknownOption(option)) return `${option.key}=`;
+
+    let value: string;
+    switch (option.key) {
         case 'title':
             value = option.title;
             break;
@@ -417,16 +420,16 @@ export function stringifyOption(option: OptionLine) {
             value = option.illustrator;
             break;
         case 'difficulty':
-            value = DIFFICULTY_ARR[option.difficulty];
+            value = DIFFICULTY_ARR[option.difficulty] ?? `${option.difficulty}`;
             break;
         case 'level':
-            value = option.level;
+            value = String(option.level);
             break;
         case 't':
-            value = option.bpm;
+            value = String(option.bpm);
             break;
         case 'to':
-            value = option.bpm;
+            value = String(option.bpm);
             break;
         case 'beat':
             value = option.time_sig.join('/');
@@ -435,52 +438,56 @@ export function stringifyOption(option: OptionLine) {
             value = option.music.join(';');
             break;
         case 'mvol':
-            value = option.volume;
+            value = String(option.volume);
             break;
         case 'o':
-            value = option.offset;
+            value = String(option.offset);
             break;
         case 'bg':
             value = option.background.join(';');
             break;
         case 'layer': {
-            const { name, loop_time_ms, rotation } = option;
-            const parts: (string | number | null | undefined)[] = [name, loop_time_ms, rotation];
-            while (parts.length > 1 && parts[parts.length - 1] == null) {
-                parts.pop();
+            const parts: Array<string|number> = [option.name];
+            if (option.loop_time_ms != null) {
+                parts.push(option.loop_time_ms);
+                if (option.rotation != null) {
+                    parts.push(option.rotation);
+                }
+            } else if (option.rotation != null) {
+                parts.push('', option.rotation);
             }
-            value = parts.map((p) => p ?? '').join(';');
+            value = parts.join(';');
             break;
         }
         case 'po':
-            value = option.offset;
+            value = String(option.offset);
             break;
         case 'plength':
-            value = option.length;
+            value = String(option.length);
             break;
         case 'total':
-            value = option.total;
+            value = String(option.total);
             break;
         case 'chokkakuvol':
-            value = option.volume;
+            value = String(option.volume);
             break;
         case 'chokkakuautovol':
-            value = option.enabled ? 1 : 0;
+            value = option.enabled ? '1' : '0';
             break;
         case 'filtertype':
             value = option.filter_type;
             break;
         case 'pfiltergain':
-            value = option.gain;
+            value = String(option.gain);
             break;
         case 'pfilterdelay':
-            value = option.delay;
+            value = String(option.delay);
             break;
         case 'v':
             value = option.video;
             break;
         case 'vo':
-            value = option.offset;
+            value = String(option.offset);
             break;
         case 'ver':
             value = option.version;
@@ -492,40 +499,41 @@ export function stringifyOption(option: OptionLine) {
             value = option.sound_effect;
             break;
         case 'stop':
-            value = option.duration.value;
+            value = String(option.duration);
             break;
         case 'tilt':
-            value = option.tilt;
+            value = String(option.tilt);
             break;
         case 'zoom_top':
         case 'zoom_bottom':
         case 'zoom_side':
-            value = option.zoom;
+            value = String(option.zoom);
             break;
         case 'center_split':
-            value = option.split;
+            value = String(option.split);
             break;
         case 'laserrange_l':
         case 'laserrange_r':
             value = `${option.range}x`;
             break;
         case 'fx-l':
-        case 'fx-r': {
-            const { effect_name, effect_params } = option;
-            value = [effect_name, ...effect_params].join(';');
+        case 'fx-r':
+            value = [option.effect_name, ...option.effect_params].join(';');
             break;
-        }
         case 'fx-l_param1':
         case 'fx-r_param1':
-            value = option.param;
+            value = String(option.param);
             break;
         case 'fx-l_se':
         case 'fx-r_se': {
-            const { effect_name, effect_volume } = option;
-            value = [effect_name, effect_volume].filter((v) => v != null).join(';');
+            const parts = [option.effect_name];
+            if (option.effect_volume != null) {
+                parts.push(String(option.effect_volume));
+            }
+            value = parts.join(';');
             break;
         }
-        default:
     }
+
+    return `${option.key}=${value}`;
 }
-*/

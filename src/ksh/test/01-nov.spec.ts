@@ -5,7 +5,7 @@ import { HeaderContent, KSH, Measure } from '../ast/ast.js';
 
 import { parseKSH } from "../ast/parser.js";
 import { NoteType } from '../ast/note.js';
-import { BeatOptionLine } from '../ast/option.js';
+import { BeatOptionLine, parseOption } from '../ast/option.js';
 
 const EXPECTED_HEADERS: HeaderContent[] = [
     ['title', "Testcase 01 [NOV]"],
@@ -28,7 +28,7 @@ const EXPECTED_HEADERS: HeaderContent[] = [
     ['chokkakuautovol', '0'],
     ['chokkakuvol', '50'],
     ['ver', '171'],
-].map(([k, v]) => ({ type: 'option', key: k, value: v }));
+].map(([k, v]) => parseOption(k, v));
 
 const EXPECTED_BODY: Measure[] = [{
     line_no: 20,
