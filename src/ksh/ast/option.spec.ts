@@ -15,7 +15,7 @@ import {
 
 import { PULSE_MULTIPLIER } from './pulse.js';
 
-describe('ksh/ast/option', function() {
+describe("ksh/ast/option", function() {
     describe("parseOption and stringifyOption", function() {
         function testOption(key: string, value: string, expected_obj_part: object, stringified_value?: string) {
             const expected_stringified = `${key}=${stringified_value ?? value}`;
@@ -32,13 +32,13 @@ describe('ksh/ast/option', function() {
         }
 
         context("simple string options", function() {
-            testOption('title', 'Test Song', { title: 'Test Song' });
-            testOption('artist', 'Test Artist', { artist: 'Test Artist' });
-            testOption('effect', 'Chart Author', { effect: 'Chart Author' });
+            testOption('title', "Test Song", { title: "Test Song" });
+            testOption('artist', "Test Artist", { artist: "Test Artist" });
+            testOption('effect', "Chart Author", { effect: "Chart Author" });
             testOption('jacket', 'jacket.png', { jacket: 'jacket.png' });
             testOption('illustrator', 'Illustrator', { illustrator: 'Illustrator' });
             testOption('ver', '171', { version: '171' });
-            testOption('information', 'Some useless info', { information: 'Some useless info' });
+            testOption('information', "Some useless info", { information: "Some useless info" });
             testOption('filtertype', 'hpf1', { filter_type: 'hpf1' });
         });
 
@@ -126,13 +126,13 @@ describe('ksh/ast/option', function() {
 
         context("unknown effects", function() {
             it("should parse an unknown option correctly", function() {
-                const parsed = parseOption("foo", "bar") as UnknownOptionLine;
+                const parsed = parseOption('foo', 'bar') as UnknownOptionLine;
                 assert.isTrue(parsed.unknown);
-                assert.strictEqual(parsed.key, "foo");
-                assert.strictEqual(parsed.raw, "bar");
+                assert.strictEqual(parsed.key, 'foo');
+                assert.strictEqual(parsed.raw, 'bar');
             });
-            it('should stringify an unknown option correctly', function() {
-                const parsed = parseOption("foo", "bar");
+            it("should stringify an unknown option correctly", function() {
+                const parsed = parseOption('foo', 'bar');
                 const stringified = stringifyOption(parsed);
                 assert.strictEqual(stringified, 'foo=bar');
             });
@@ -140,50 +140,50 @@ describe('ksh/ast/option', function() {
     });
     
     describe("stringifyOption (from scratch)", function() {
-        it('should stringify a difficulty option correctly', function() {
+        it("should stringify a difficulty option correctly", function() {
             const opt: DifficultyOptionLine = { type: 'option', key: 'difficulty', difficulty: 1 };
             assert.strictEqual(stringifyOption(opt), 'difficulty=challenge');
         });
 
-        it('should stringify a beat option correctly', function() {
+        it("should stringify a beat option correctly", function() {
             const opt: BeatOptionLine = { type: 'option', key: 'beat', time_sig: [5, 4] };
             assert.strictEqual(stringifyOption(opt), 'beat=5/4');
         });
         
-        it('should stringify a layer option with all params', function() {
+        it("should stringify a layer option with all params", function() {
             const opt: LayerOptionLine = { type: 'option', key: 'layer', name: 'test', loop_time_ms: 123, rotation: 3 };
             assert.strictEqual(stringifyOption(opt), 'layer=test;123;3');
         });
 
-        it('should stringify a layer option with just loop time', function() {
+        it("should stringify a layer option with just loop time", function() {
             const opt: LayerOptionLine = { type: 'option', key: 'layer', name: 'test', loop_time_ms: 123 };
             assert.strictEqual(stringifyOption(opt), 'layer=test;123');
         });
         
-        it('should stringify an fx option with weird params', function() {
+        it("should stringify an fx option with weird params", function() {
             const opt: FXOptionLine = { type: 'option', key: 'fx-l', fx_lane: 0, effect_name: 'MyEffect', effect_params: [1, 'two'] };
             assert.strictEqual(stringifyOption(opt), 'fx-l=MyEffect;1;two');
         });
 
-        it('should stringify an fx_se option without volume', function() {
+        it("should stringify an fx_se option without volume", function() {
             const opt: FXSoundEffectOptionLine = { type: 'option', key: 'fx-r_se', fx_lane: 1, effect_name: 'clap' };
             assert.strictEqual(stringifyOption(opt), 'fx-r_se=clap');
         });
 
-        it('should stringify a stop option', function() {
+        it("should stringify a stop option", function() {
             const opt: StopOptionLine = { type: 'option', key: 'stop', duration: 192 * PULSE_MULTIPLIER };
             assert.strictEqual(stringifyOption(opt), 'stop=192');
         });
     });
 
     describe("isUnknownOption", function() {
-        it('should return true for unknown options', function() {
+        it("should return true for unknown options", function() {
             const parsed = parseOption('foo', 'bar');
             assert.isTrue(isUnknownOption(parsed));
         });
 
         it("should return false for known options", function() {
-            const parsed = parseOption('title', 'song name');
+            const parsed = parseOption('title', "song name");
             assert.isFalse(isUnknownOption(parsed));
         });
     });
