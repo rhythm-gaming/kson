@@ -1,0 +1,1 @@
+To start, read the rules under `.continue/rules`.
