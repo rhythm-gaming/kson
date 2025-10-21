@@ -1,4 +1,4 @@
-import { parsePulse, type Pulse } from "./pulse.js";
+import { parsePulse, stringifyPulse, type Pulse } from "./pulse.js";
 
 interface BaseOptionLine<K extends string = string> {
     readonly type: 'option';
@@ -273,7 +273,17 @@ export function isUnknownOption(option: OptionLine): option is UnknownOptionLine
 const DIFFICULTY_ARR = ['light', 'challenge', 'extended', 'infinite'];
 const DIFFICULTY_MAP = Object.freeze(Object.fromEntries(DIFFICULTY_ARR.map((v, i) => [v, i])));
 
-export function parseOption(key: string, value: string): OptionLine {
+function parseIntWithDefault(s: string, default_value: number = 0): number {
+    const parsed = parseInt(s, 10);
+    return Number.isSafeInteger(parsed) ? parsed : default_value;
+}
+
+function parseFloatWithDefault(s: string, default_value: number = 0): number {
+    const parsed = parseFloat(s);
+    return Number.isFinite(parsed) ? parsed : default_value;
+}
+
+export function parseOption(key: string, value: string, is_body: boolean|null = null): OptionLine {
     const base = { type: 'option' as const, key, raw: value };
 
     switch (key) {
@@ -293,52 +303,56 @@ export function parseOption(key: string, value: string): OptionLine {
             return { ...base, key, illustrator: value };
         case 'difficulty':
             return { ...base, key, difficulty: DIFFICULTY_MAP[value] ?? 3 };
-        case 'level':
-            return { ...base, key, level: parseInt(value, 10) };
-        case 't': {
-            const bpm = parseFloat(value);
-            return { ...base, key, bpm: Number.isNaN(bpm) ? value : bpm };
+        case 'level': {
+            return { ...base, key, level: parseIntWithDefault(value, 1) };
         }
-        case 'to':
-            return { ...base, key, bpm: parseFloat(value) };
+        case 't': {
+            if(value.includes('-')) return { ...base, key, bpm: value };
+
+            const bpm = parseFloat(value);
+            return { ...base, key, bpm: Number.isFinite(bpm) ? bpm : (is_body === true ? 120 : value) };
+        }
+        case 'to': {
+            return { ...base, key, bpm: parseFloatWithDefault(value, 120) };
+        }
         case 'beat': {
-            const [beat_count, beat_unit] = value.split('/').map((s) => parseInt(s, 10));
+            const [beat_count, beat_unit] = value.split('/').map((s) => parseIntWithDefault(s, 4));
             return { ...base, key, time_sig: [beat_count, beat_unit] };
         }
         case 'm':
             return { ...base, key, music: value.split(';') };
         case 'mvol':
-            return { ...base, key, volume: parseInt(value, 10) };
+            return { ...base, key, volume: parseIntWithDefault(value, 100) };
         case 'o':
-            return { ...base, key, offset: parseInt(value, 10) };
+            return { ...base, key, offset: parseIntWithDefault(value, 0) };
         case 'bg':
             return { ...base, key, background: value.split(';') };
         case 'layer': {
             const [name, loop_time_ms_str, rotation_str] = value.split(';');
-            const loop_time_ms = loop_time_ms_str ? parseInt(loop_time_ms_str, 10) : (void 0);
-            const rotation = rotation_str ? parseInt(rotation_str, 10) as (0 | 1 | 2 | 3) : (void 0);
+            const loop_time_ms = loop_time_ms_str ? parseIntWithDefault(loop_time_ms_str, 0) : (void 0);
+            const rotation = rotation_str ? parseIntWithDefault(rotation_str, 0) as (0 | 1 | 2 | 3) : (void 0);
             return { ...base, key, name, loop_time_ms, rotation };
         }
         case 'po':
-            return { ...base, key, offset: parseInt(value, 10) };
+            return { ...base, key, offset: parseIntWithDefault(value, 0) };
         case 'plength':
-            return { ...base, key, length: parseInt(value, 10) };
+            return { ...base, key, length: parseIntWithDefault(value, 0) };
         case 'total':
-            return { ...base, key, total: parseInt(value, 10) };
+            return { ...base, key, total: parseIntWithDefault(value, 0) };
         case 'chokkakuvol':
-            return { ...base, key, volume: parseInt(value, 10) };
+            return { ...base, key, volume: parseIntWithDefault(value, 50) };
         case 'chokkakuautovol':
-            return { ...base, key, enabled: parseInt(value, 10) === 1 };
+            return { ...base, key, enabled: parseIntWithDefault(value, 1) === 1 };
         case 'filtertype':
             return { ...base, key, filter_type: value };
         case 'pfiltergain':
-            return { ...base, key, gain: parseInt(value, 10) };
+            return { ...base, key, gain: parseIntWithDefault(value, 50) };
         case 'pfilterdelay':
-            return { ...base, key, delay: parseInt(value, 10) };
+            return { ...base, key, delay: parseIntWithDefault(value, 40) };
         case 'v':
             return { ...base, key, video: value };
         case 'vo':
-            return { ...base, key, offset: parseInt(value, 10) };
+            return { ...base, key, offset: parseIntWithDefault(value, 0) };
         case 'ver':
             return { ...base, key, version: value };
         case 'information':
@@ -352,13 +366,13 @@ export function parseOption(key: string, value: string): OptionLine {
             return { ...base, key, tilt: Number.isNaN(tilt) ? value as TiltTypeName : tilt };
         }
         case 'zoom_top':
-            return { ...base, key, zoom: parseInt(value, 10) };
+            return { ...base, key, zoom: parseIntWithDefault(value, 0) };
         case 'zoom_bottom':
-            return { ...base, key, zoom: parseInt(value, 10) };
+            return { ...base, key, zoom: parseIntWithDefault(value, 0) };
         case 'zoom_side':
-            return { ...base, key, zoom: parseInt(value, 10) };
+            return { ...base, key, zoom: parseIntWithDefault(value, 0) };
         case 'center_split':
-            return { ...base, key, split: parseInt(value, 10) };
+            return { ...base, key, split: parseIntWithDefault(value, 0) };
         case 'laserrange_l':
         case 'laserrange_r': {
             const fx_lane = key === 'laserrange_l' ? 0 : 1;
@@ -377,13 +391,13 @@ export function parseOption(key: string, value: string): OptionLine {
         case 'fx-l_param1':
         case 'fx-r_param1': {
             const fx_lane = key === 'fx-l_param1' ? 0 : 1;
-            return { ...base, key, fx_lane, param: parseInt(value, 10) };
+            return { ...base, key, fx_lane, param: parseIntWithDefault(value, 0) };
         }
         case 'fx-l_se':
         case 'fx-r_se': {
             const fx_lane = key === 'fx-l_se' ? 0 : 1;
             const [effect_name, effect_volume_str] = value.split(';');
-            const effect_volume = effect_volume_str ? parseInt(effect_volume_str, 10) : undefined;
+            const effect_volume = effect_volume_str ? parseIntWithDefault(effect_volume_str, 0) : (void 0);
             return { ...base, key, fx_lane, effect_name, effect_volume };
         }
         default:
@@ -499,7 +513,7 @@ export function stringifyOption(option: OptionLine): string {
             value = option.sound_effect;
             break;
         case 'stop':
-            value = String(option.duration);
+            value = stringifyPulse(option.duration);
             break;
         case 'tilt':
             value = String(option.tilt);

@@ -15,7 +15,7 @@ const DEFINITION_LINE_REGEX = /^#define_(\S+)\s+(\S+)\s+(.*)$/;
  * @param line The line to parse.
  * @returns A KSHLine object, or `null` if the line is empty.
  */
-function parseLine(line: string): KSHLine|null {
+function parseLine(line: string, is_body: boolean|null = null): KSHLine|null {
     line = line.trim();
     if (line === '') {
         return null;
@@ -38,7 +38,7 @@ function parseLine(line: string): KSHLine|null {
     const opt_match = line.match(OPTION_LINE_REGEX);
     if (opt_match) {
         const [, key, value] = opt_match;
-        return parseOption(key, value);
+        return parseOption(key, value, is_body);
     }
 
     const chart_match = line.match(CHART_LINE_REGEX);
@@ -93,7 +93,7 @@ export function parseKSH(ksh: string): KSH {
             line = line.slice(1);
         }
 
-        const parsed = parseLine(line);
+        const parsed = parseLine(line, false);
         if(!parsed) continue;
 
         switch(parsed.type) {
@@ -119,7 +119,7 @@ export function parseKSH(ksh: string): KSH {
     let curr_measure_lines: MeasureContent[] = [];
 
     for (curr_line_no = curr_line_no + 1; curr_line_no < lines.length; ++curr_line_no) {
-        const parsed = parseLine(lines[curr_line_no]);
+        const parsed = parseLine(lines[curr_line_no], true);
         if(!parsed) continue;
 
         switch(parsed.type) {
