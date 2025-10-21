@@ -1,7 +1,7 @@
 import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo, GraphSectionPoint, ButtonLane, LaserLane } from "../../kson/index.js";
 import { normalizeDifficulty } from "./common.js";
 import { ChartLine, CommentLine, KSH, Measure, OptionLine, stringifyLine, UnknownLine } from "../ast/index.js";
-import { PULSES_PER_WHOLE, SLAM_THRESHOLD } from "../ast/pulse.js";
+import { Pulse, PULSES_PER_WHOLE, SLAM_THRESHOLD } from "../ast/pulse.js";
 import { NoteType } from "../ast/note.js";
 import { LASER_CONTINUE, LASER_POS_MAX, LaserInd } from "../ast/laser.js";
 
@@ -67,6 +67,8 @@ interface BodyProcessState {
     bt_states: [ButtonState, ButtonState, ButtonState, ButtonState];
     fx_states: [ButtonState, ButtonState];
     laser_states: [LaserState, LaserState];
+
+    scroll_speed_changes: Array<[pulse: Pulse, delta: number]>;
 }
 
 function createBodyProcessState(): BodyProcessState {
@@ -79,6 +81,8 @@ function createBodyProcessState(): BodyProcessState {
         bt_states: [createButtonState(), createButtonState(), createButtonState(), createButtonState()],
         fx_states: [createButtonState(), createButtonState()],
         laser_states: [createLaserState(), createLaserState()],
+
+        scroll_speed_changes: [],
     };
 }
 
