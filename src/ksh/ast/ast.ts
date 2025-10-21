@@ -1,13 +1,10 @@
+export type { OptionLine } from "./option.js";
+
 import { LaserInd } from "./laser.js";
 import { LegacyFX, NoteType } from "./note.js";
 import { SpinInfo } from "./spin.js";
 
-/** A key-value pair from an option line (e.g., `title=...`). */
-export interface OptionLine {
-    readonly type: 'option';
-    key: string;
-    value: string;
-}
+import { OptionLine } from "./option.js";
 
 /** A chart line with BT, FX, and laser notes. */
 export interface ChartLine {

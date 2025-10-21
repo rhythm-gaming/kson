@@ -34,7 +34,8 @@ function getInitialTimeSig({lines}: Measure): TimeSig|null {
         if(line.type !== 'option') continue;
         if(line.key !== 'beat') continue;
 
-        return parseTimeSig(line.value);
+        // TODO
+        return parseTimeSig(line.raw ?? "");
     }
     
     return null;
@@ -202,7 +203,8 @@ export class KSH2KSONConverter {
                 continue;
             }
 
-            const { key, value } = line;
+            // TODO
+            const { key, raw: value = "" } = line;
 
             switch (key) {
                 // Meta
@@ -471,11 +473,12 @@ export class KSH2KSONConverter {
     }
 
     #processMeasureOption(state: BodyProcessState, line: OptionLine, first_chart_line_passed: boolean) {
-        const {key, value} = line;
+        // TODO
+        const {key, raw: value = ""} = line;
         switch(key) {
             case 'beat': {
                 if(first_chart_line_passed) {
-                    state.next_time_sig = parseTimeSig(line.value);
+                    state.next_time_sig = parseTimeSig(value);
                 }
                 break;
             }

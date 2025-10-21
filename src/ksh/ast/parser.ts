@@ -4,6 +4,7 @@ import { parsePulse } from "./pulse.js";
 import { parseBT, parseFX } from "./note.js";
 import { parseLaser } from "./laser.js";
 import { parseSpinType } from "./spin.js";
+import { parseOption } from "./option.js";
 
 const CHART_LINE_REGEX = /^([012]{4})\|(.{2})\|([-:0-9A-Za-o]{2})(?:([@S][<>()])(\d+))?$/;
 const OPTION_LINE_REGEX = /^([^=]+)=(.*)$/;
@@ -37,7 +38,7 @@ function parseLine(line: string): KSHLine|null {
     const opt_match = line.match(OPTION_LINE_REGEX);
     if (opt_match) {
         const [, key, value] = opt_match;
-        return { type: 'option', key, value };
+        return parseOption(key, value);
     }
 
     const chart_match = line.match(CHART_LINE_REGEX);

@@ -1,6 +1,7 @@
 import { KSH, KSHLine } from "./ast.js";
 import { stringifyLaser } from "./laser.js";
 import { stringifyBT, stringifyFX } from "./note.js";
+import { stringifyOption } from "./option.js";
 import { stringifySpinInfo } from "./spin.js";
 
 /**
@@ -11,7 +12,7 @@ import { stringifySpinInfo } from "./spin.js";
 export function stringifyLine(line: KSHLine): string {
     switch(line.type) {
         case 'option':
-            return `${line.key}=${line.value}`;
+            return stringifyOption(line);
         case 'chart': {
             const bt = stringifyBT(line.bt);
             const fx = stringifyFX(line.fx, line.fx_legacy);

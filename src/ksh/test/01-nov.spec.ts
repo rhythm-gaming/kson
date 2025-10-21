@@ -5,6 +5,7 @@ import { HeaderContent, KSH, Measure } from '../ast/ast.js';
 
 import { parseKSH } from "../ast/parser.js";
 import { NoteType } from '../ast/note.js';
+import { BeatOptionLine } from '../ast/option.js';
 
 const EXPECTED_HEADERS: HeaderContent[] = [
     ['title', "Testcase 01 [NOV]"],
@@ -32,7 +33,7 @@ const EXPECTED_HEADERS: HeaderContent[] = [
 const EXPECTED_BODY: Measure[] = [{
     line_no: 20,
     lines: [
-        {type: 'option', key: 'beat', value: '4/4'},
+        {type: 'option', key: 'beat', raw: "4/4", time_sig: [4, 4]} satisfies BeatOptionLine,
         {
             type: 'chart',
             bt: [NoteType.NONE, NoteType.NONE, NoteType.NONE, NoteType.NONE],

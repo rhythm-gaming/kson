@@ -1,3 +1,4 @@
+/** 960 per measure. All pulse values are multiplied by 5 when loaded into memory. */
 export type Pulse = number;
 
 /** Values as specified in the KSH specification; not actually used in memory. */
