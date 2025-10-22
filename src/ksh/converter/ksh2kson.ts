@@ -1,23 +1,9 @@
 import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo, GraphSectionPoint, ButtonLane, LaserLane } from "../../kson/index.js";
-import { normalizeDifficulty } from "./common.js";
 import { ChartLine, CommentLine, KSH, Measure, OptionLine, stringifyLine, UnknownLine } from "../ast/index.js";
 import { Pulse, PULSES_PER_WHOLE, SLAM_THRESHOLD } from "../ast/pulse.js";
 import { NoteType } from "../ast/note.js";
 import { LASER_CONTINUE, LASER_POS_MAX, LaserInd } from "../ast/laser.js";
-
-function parseTimeSig(value: string): TimeSig {
-    const parts = value.split('/');
-    if (parts.length !== 2) throw new Error(`Invalid time signature: ${value}`);
-
-    const n = parseInt(parts[0], 10);
-    const d = parseInt(parts[1], 10);
-
-    if (!Number.isSafeInteger(n) || !Number.isSafeInteger(d) || n <= 0 || d <= 0) {
-        throw new Error(`Invalid time signature: ${value}`);
-    }
-
-    return [n, d];
-}
+import { isUnknownOption } from "../ast/option.js";
 
 /**
  * Get the time signature specified at the beginning of the measure.
@@ -32,10 +18,9 @@ function getInitialTimeSig({lines}: Measure): TimeSig|null {
     for(const line of lines) {
         if(line.type === 'chart') return null;
         if(line.type !== 'option') continue;
+        if(isUnknownOption(line)) continue;
         if(line.key !== 'beat') continue;
-
-        // TODO
-        return parseTimeSig(line.raw ?? "");
+        return line.time_sig satisfies TimeSig;
     }
     
     return null;
@@ -181,6 +166,16 @@ export class KSH2KSONConverter {
         return compat.ksh_unknown ?? (compat.ksh_unknown = {});
     }
 
+    #getKSHUnknownLines(): NonNullable<KSHUnknownInfo['line']> {
+        const ksh_unknown_info = this.#getKSHUnknownInfo();
+        return ksh_unknown_info.line ?? (ksh_unknown_info.line = []);
+    }
+
+    #getKSHUnknownMeta(): NonNullable<KSHUnknownInfo['meta']> {
+        const ksh_unknown_info = this.#getKSHUnknownInfo();
+        return ksh_unknown_info.meta ?? (ksh_unknown_info.meta = {});
+    }
+
     #getKeySound() {
         const audio = this.#getAudioInfo();
         return audio.key_sound ?? (audio.key_sound = {});
@@ -199,115 +194,103 @@ export class KSH2KSONConverter {
     #processHeader() {
         for (const line of this.#ksh.header) {
             if (line.type !== 'option') {
-                const ksh_unknown_info = this.#getKSHUnknownInfo();
-                const unknown_lines = ksh_unknown_info.line ?? (ksh_unknown_info.line = []);
-
-                unknown_lines.push([0, stringifyLine(line)]);
-
+                this.#getKSHUnknownLines().push([0, stringifyLine(line)]);
                 continue;
             }
 
-            // TODO
-            const { key, raw: value = "" } = line;
+            if(isUnknownOption(line)) {
+                this.#getKSHUnknownMeta()[line.key] = line.raw ?? "";
+                continue;
+            }
 
-            switch (key) {
+            switch(line.key) {
                 // Meta
-                case 'title':       this.#meta_info.title               = value;                      break;
-                case 'title_img':   this.#meta_info.title_img_filename  = value;                      break;
-                case 'artist':      this.#meta_info.artist              = value;                      break;
-                case 'artist_img':  this.#meta_info.artist_img_filename = value;                      break;
-                case 'effect':      this.#meta_info.chart_author        = value;                      break;
-                case 'jacket':      this.#meta_info.jacket_filename     = value;                      break;
-                case 'illustrator': this.#meta_info.jacket_author       = value;                      break;
-                case 'difficulty':  this.#meta_info.difficulty          = normalizeDifficulty(value); break;
-                case 'level':       this.#meta_info.level               = parseInt(value, 10);        break;
-                case 'information': this.#meta_info.information         = value;                      break;
-
+                case 'title':       this.#meta_info.title               = line.title;       break;
+                case 'title_img':   this.#meta_info.title_img_filename  = line.title_img;   break;
+                case 'artist':      this.#meta_info.artist              = line.artist;      break;
+                case 'artist_img':  this.#meta_info.artist_img_filename = line.artist_img;  break;
+                case 'effect':      this.#meta_info.chart_author        = line.effect;      break;
+                case 'jacket':      this.#meta_info.jacket_filename     = line.jacket;      break;
+                case 'illustrator': this.#meta_info.jacket_author       = line.illustrator; break;
+                case 'difficulty':  this.#meta_info.difficulty          = line.difficulty;  break;
+                case 'level':       this.#meta_info.level               = line.level;       break;
+                case 'information': this.#meta_info.information         = line.information; break;
+                
                 // Beat
                 case 't':
-                    this.#meta_info.disp_bpm = value;
-                    if (!value.includes('-')) {
-                        this.#initial_bpm = parseFloat(value);
+                    this.#meta_info.disp_bpm = line.raw ?? String(line.bpm);
+                    if (typeof line.bpm === 'number') {
+                        this.#initial_bpm = line.bpm;
                     }
                     break;
-                case 'to': this.#meta_info.std_bpm = parseFloat(value); break;
-                case 'beat': this.#initial_time_sig = parseTimeSig(value); break;
-
+                case 'to': this.#meta_info.std_bpm = line.bpm; break;
+                case 'beat': this.#initial_time_sig = line.time_sig; break;
+                
                 // Gauge
-                case 'total': this.#getGaugeInfo().total = parseInt(value, 10); break;
+                case 'total': this.#getGaugeInfo().total = line.total; break;
 
                 // Audio
                 case 'm': {
-                    const files = value.split(';');
-                    this.#getBGMInfo().filename = files[0];
-                    if (files.length > 1) {
-                        this.#getBGMLegacyInfo().fp_filenames = files.slice(1);
+                    this.#getBGMInfo().filename = line.music[0];
+                    if (line.music.length > 1) {
+                        this.#getBGMLegacyInfo().fp_filenames = line.music.slice(1);
                     }
                     break;
                 }
                 case 'mvol': {
-                    this.#getBGMInfo().vol = parseInt(value, 10) / 100.0;
+                    this.#getBGMInfo().vol = line.volume / 100.0;
                     break;
                 }
-                case 'o': this.#getBGMInfo().offset = parseInt(value, 10); break;
-                case 'po': this.#getBGMPreviewInfo().offset = parseInt(value, 10); break;
-                case 'plength': this.#getBGMPreviewInfo().duration = parseInt(value, 10); break;
+                case 'o': this.#getBGMInfo().offset = line.offset; break;
+                case 'po': this.#getBGMPreviewInfo().offset = line.offset; break;
+                case 'plength': this.#getBGMPreviewInfo().duration = line.length; break;
                 case 'chokkakuvol':
-                    this.#getKeySoundLaser().vol = [[0, parseInt(value, 10) / 100.0]];
+                    this.#getKeySoundLaser().vol = [[0, line.volume / 100.0]];
                     break;
                 case 'chokkakuautovol':
-                    this.#getKeySoundLaserLegacy().vol_auto = value === '1';
+                    this.#getKeySoundLaserLegacy().vol_auto = line.enabled;
                     break;
                 case 'pfilterdelay': {
                     const effect = this.#getAudioEffectInfo();
                     const laser = effect.laser ?? (effect.laser = AudioEffectLaserInfo.assert({}));
-                    laser.peaking_filter_delay = parseInt(value, 10);
+                    laser.peaking_filter_delay = line.delay;
                     break;
                 }
-
+                
                 // BG
                 case 'bg': {
-                    const files = value.split(';');
                     const legacy = this.#getBGLegacyInfo();
-                    if (files.length === 1) {
-                        legacy.bg = [{ filename: files[0] }];
-                    } else if (files.length === 2) {
-                        legacy.bg = [{ filename: files[0] }, { filename: files[1] }];
+                    if (line.background.length === 1) {
+                        legacy.bg = [{ filename: line.background[0] }];
+                    } else if (line.background.length === 2) {
+                        legacy.bg = [{ filename: line.background[0] }, { filename: line.background[1] }];
                     }
                     break;
                 }
                 case 'layer': {
                     const legacy = this.#getBGLegacyInfo();
                     const layer = legacy.layer ?? (legacy.layer = KSHLayerInfo.assert({}));
-                    const parts = value.split(';');
-                    layer.filename = parts[0];
-                    if (parts.length > 1) {
-                        layer.duration = parseInt(parts[1], 10);
+                    layer.filename = line.name;
+                    if (line.loop_time_ms != null) {
+                        layer.duration = line.loop_time_ms;
                     }
-                    if (parts.length > 2) {
-                        const rotationFlags = parseInt(parts[2], 10);
-                        if (rotationFlags > 0) {
-                            layer.rotation = {
-                                tilt: (rotationFlags & 1) !== 0,
-                                spin: (rotationFlags & 2) !== 0,
-                            };
-                        }
+                    if (line.rotation != null && line.rotation > 0) {
+                        layer.rotation = {
+                            tilt: (line.rotation & 1) !== 0,
+                            spin: (line.rotation & 2) !== 0,
+                        };
                     }
                     break;
                 }
-                case 'v': this.#getBGLegacyMovieInfo().filename = value; break;
-                case 'vo': this.#getBGLegacyMovieInfo().offset = parseInt(value, 10); break;
+                case 'v': this.#getBGLegacyMovieInfo().filename = line.video; break;
+                case 'vo': this.#getBGLegacyMovieInfo().offset = line.offset; break;
 
                 // Compat
                 case 'ver':
-                    this.#getCompatInfo().ksh_version = value;
+                    this.#getCompatInfo().ksh_version = line.version;
                     break;
                 
-                default: {
-                    const ksh_unknown_info = this.#getKSHUnknownInfo();
-                    const unknown_meta = ksh_unknown_info.meta ?? (ksh_unknown_info.meta = {});
-                    unknown_meta[key] = value;
-                }
+                // TODO: Implement more.
             }
         }
 
