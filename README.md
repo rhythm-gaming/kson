@@ -12,42 +12,59 @@ This library can be used to create such tools, but is not a tool by itself.
 
 ## How to Use
 
-The library can be installed by the following `npm` command.
+The library can be installed via:
 
 ```bash
 npm install @rhythm-gaming/kson
 ```
 
-Two pairs of functions, one for KSH, and one for KSON, are implemented by the library.
+Both KSH and KSON charts are internally represented as a `KSON` object. Consult [the KSON specification](https://github.com/kshootmania/ksm-chart-format/blob/master/kson_format.md) for how to navigate through a `KSON` object.
 
-Both KSH and KSON charts are represented by a `KSON` object.
+### KSH reading/writing
 
 ```ts
+import * as fs from "node:fs/promises";
 import {
-  parseKSH, stringifyKSH,   // for reading/writing KSH
-  parseKSON, stringifyKSON, // for reading/writing KSON
+  parseKSH,     // KSH source to KSON or KSH
+  stringifyKSH, // KSON or KSH to KSH source
   type KSON,
-  KSON_VERSION, // the version of the KSON specification this library implements
 } from "@rhythm-gaming/kson";
 
-// Open a KSH file.
+const ksh_text = await fs.readFile("chart.ksh", "utf-8");
+const kson: KSON = parseKSH(ksh_text);
 
-import * as fs from "node:fs/promises";
+kson.meta.title = "Hello, world!";
 
-const ksh_file = await fs.readFile("chart.ksh", 'utf-8');
-const kson: KSON = parseKSH(ksh_file);
-
-// Modify the chart's title.
-
-kson.meta.title = "Good morning!";
-
-// Save the file, both as KSH and KSON.
-
-await fs.writeFile("chart.ksh", stringifyKSH(kson), 'utf-8');
-await fs.writeFile("chart.kson", stringifyKSON(kson), 'utf-8');
+const new_ksh_text = stringifyKSH(kson);
+await fs.writeFile("new_chart.ksh", new_ksh_text, "utf-8");
 ```
 
-Consult the KSON specification for how to navigate through a `KSON` object.
+Note that, by default, `parseKSH` will convert the KSH file to KSON representation.
+
+When the second argument to `parseKSH` is `true`, the library will not convert the KSH file to KSON representation, and will return an AST for the original KSH file.
+
+### KSON reading/writing
+
+```ts
+import * as fs from "node:fs/promises";
+import {
+  parseKSON,     // KSON source or non-normalized KSON to normalized KSON
+  stringifyKSON, // KSON to KSON source
+  createKSON,    // Create a new empty KSON object
+  type KSON,
+} from "@rhythm-gaming/kson";
+
+// Open and read a KSON file.
+
+const kson_text = await fs.readFile("chart.kson", "utf-8");
+const kson: KSON = parseKSON(kson_text);
+
+kson.meta.title = "Hello, world!";
+kson.meta.artist = "John Doe";
+
+const new_kson_text = stringifyKSON(kson);
+await fs.writeFile("new_chart.kson", new_kson_text, "utf-8");
+```
 
 ## Progress
 
