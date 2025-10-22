@@ -4,7 +4,7 @@ import { LaserInd } from "./laser.js";
 import { LegacyFX, NoteType } from "./note.js";
 import { SpinInfo } from "./spin.js";
 
-import { OptionLine } from "./option.js";
+import { OptionLine, UnknownOptionLine } from "./option.js";
 
 /** A chart line with BT, FX, and laser notes. */
 export interface ChartLine {
@@ -44,6 +44,7 @@ export interface UnknownLine {
 
 export type HeaderContent = OptionLine | CommentLine | UnknownLine;
 export type MeasureContent = OptionLine | ChartLine | CommentLine | UnknownLine;
+export type FooterContent = DefinitionLine | UnknownLine | UnknownOptionLine;
 export type KSHLine = OptionLine | ChartLine | BarLine | DefinitionLine | CommentLine | UnknownLine;
 
 /** Represents a measure, containing a list of lines between two bar lines. */
@@ -62,7 +63,7 @@ export interface KSH {
     body: Measure[];
 
     /** Definition lines, typically at the end of the file. */
-    footer: DefinitionLine[];
+    footer: FooterContent[];
 }
 
 /**

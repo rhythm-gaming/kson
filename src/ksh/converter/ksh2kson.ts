@@ -1,4 +1,4 @@
-import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo, GraphSectionPoint, ButtonLane, LaserLane } from "../../kson/index.js";
+import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo, GraphSectionPoint, ButtonLane, LaserLane, AudioEffectFXInfo } from "../../kson/index.js";
 import { ChartLine, CommentLine, KSH, Measure, OptionLine, stringifyLine, UnknownLine } from "../ast/index.js";
 import { Pulse, PULSES_PER_WHOLE, SLAM_THRESHOLD } from "../ast/pulse.js";
 import { NoteType } from "../ast/note.js";
@@ -128,7 +128,9 @@ export class KSH2KSONConverter {
         this.#ksh = ksh;
 
         this.#processHeader();
-        this.#processBody();
+        
+        const {pulse} = this.#processBody();
+        this.#processFooter(pulse);
     }
 
     #getGaugeInfo(): GaugeInfo {
@@ -158,6 +160,12 @@ export class KSH2KSONConverter {
         const audio = this.#getAudioInfo();
         return audio.audio_effect ?? (audio.audio_effect = {});
     }
+
+    #getAudioEffectFXInfo(): AudioEffectFXInfo {
+        const audio_effect = this.#getAudioEffectInfo();
+        return audio_effect.fx ?? (audio_effect.fx = AudioEffectFXInfo.assert({}));
+    }
+
 
     #getBGInfo(): BGInfo {
         return this.#bg_info ?? (this.#bg_info = BGInfo.assert({}));
@@ -398,7 +406,7 @@ export class KSH2KSONConverter {
         }
     }
 
-    #processBody() {
+    #processBody(): BodyProcessState {
         this.#beat_info.bpm.push([0, this.#initial_bpm]);
         this.#beat_info.time_sig.push([0, this.#initial_time_sig]);
         this.#beat_info.scroll_speed.push([0, [1.0, 1.0]]);
@@ -437,6 +445,8 @@ export class KSH2KSONConverter {
 
         // Handle `stop` scroll speed changes.
         this.#beat_info.scroll_speed = toScrollSpeeds(state.scroll_speed_changes);
+
+        return state;
     }
 
     #processMeasure(state: BodyProcessState, measure: Measure, measure_idx: number) {
@@ -642,6 +652,31 @@ export class KSH2KSONConverter {
         const unknown_lines = ksh_unknown_info.line ?? (ksh_unknown_info.line = []);
 
         unknown_lines.push([state.pulse, stringifyLine(line)]);
+    }
+
+    #processFooter(pulse: number) {
+        for(const line of this.#ksh.footer) {
+            if(line.type === 'unknown') {
+                this.#getKSHUnknownLines().push([pulse, stringifyLine(line)]);
+                continue;
+            }
+
+            if(line.type === 'option') {
+                this.#getKSHUnknownOptions(line.key).push([pulse, line.raw ?? ""]);
+                continue;
+            }
+
+            switch(line.definition_type) {
+                case 'fx':
+                    // TODO
+                    break;
+                case 'filter':
+                    // TODO
+                    break;
+                default:
+                    this.#getKSHUnknownLines().push([pulse, stringifyLine(line)]);
+            }
+        }
     }
 
     toKSON(): KSON {
