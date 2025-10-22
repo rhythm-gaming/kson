@@ -256,7 +256,10 @@ export class KSH2KSONConverter {
         }
     }
     
-    #addLaserEffectPulseEvent(pulse: number, kson_effect_name: string) {
+    #addLaserEffectPulseEvent(pulse: number, ksh_effect_name: string) {
+        ksh_effect_name = this.#handleFilterType(ksh_effect_name);
+        const kson_effect_name = this.#kshFilterTypeToKSON(ksh_effect_name) ?? ksh_effect_name;
+
         const laser_effect = this.#getAudioEffectLaserInfo();
         const pulse_event = laser_effect.pulse_event ?? (laser_effect.pulse_event = {});
         const events = pulse_event[kson_effect_name] ?? (pulse_event[kson_effect_name] = []);
@@ -366,7 +369,7 @@ export class KSH2KSONConverter {
                     break;
                 
                 case 'filtertype':
-                    this.#addLaserEffectPulseEvent(0, this.#handleFilterType(line.filter_type));
+                    this.#addLaserEffectPulseEvent(0, line.filter_type);
                     break;
 
                 case 'pfiltergain': {
@@ -583,7 +586,7 @@ export class KSH2KSONConverter {
                 break;
             }
             case 'filtertype':
-                this.#addLaserEffectPulseEvent(state.pulse, this.#handleFilterType(line.filter_type));
+                this.#addLaserEffectPulseEvent(state.pulse, line.filter_type);
                 break;
             case 'pfiltergain': {
                 const laser = this.#getAudioEffectLaserInfo();
