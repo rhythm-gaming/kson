@@ -401,8 +401,6 @@ export class KSH2KSONConverter {
                 case 'unknown': this.#processMeasureUnknown(state, line); break;
                 default: throw new Error(`Unknown line type: ${(line as {type: string}).type}`);
             }
-
-            state.pulse += pulse_per_line;
         }
 
         state.time_sig = state.next_time_sig;

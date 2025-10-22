@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 
-import { parseKSH } from "../ast/index.js";
+import { parseKSH, PULSES_PER_WHOLE } from "../ast/index.js";
 import { readTestData } from "../../util/test.js";
 
 import { ksh2kson } from "../converter/index.js";
@@ -46,7 +46,11 @@ describe("ksh/test/02-nov", function() {
         assert.exists(kson?.note);
         const note = kson.note;
 
-        assert.strictEqual(note.bt[0].length, 16);
+        assert.deepStrictEqual(note.bt[0], [
+            0, 1, 2, 3, 4, 5, 6, 7,
+            56, 57, 58, 59, 60, 61, 62, 63,
+        ].map((t) => t * (PULSES_PER_WHOLE/4)));
+
         assert.strictEqual(note.bt[1].length, 16);
         assert.strictEqual(note.bt[2].length, 16);
         assert.strictEqual(note.bt[3].length, 16);
