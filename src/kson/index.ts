@@ -16,8 +16,8 @@ import { type } from 'arktype';
 
 import { exportType } from "../util/type.js";
 
-import { MetaInfo } from "./schema/meta.js";
-import { BeatInfo } from "./schema/beat.js";
+import { createMetaInfo, MetaInfo } from "./schema/meta.js";
+import { createBeatInfo, BeatInfo } from "./schema/beat.js";
 import { GaugeInfo } from "./schema/gauge.js";
 import { NoteInfo } from "./schema/note.js";
 import { AudioInfo } from "./schema/audio.js";
@@ -41,6 +41,18 @@ export const KSON = exportType(type({
     "impl?": ImplInfo,
 }));
 export type KSON = typeof KSON.infer;
+
+/**
+ * Creates a new KSON object with empty/default values.
+ * @returns A new KSON object, with BPM set to 120.
+ */
+export function createKSON(): KSON {
+    return {
+        version: KSON_VERSION,
+        meta: createMetaInfo(),
+        beat: createBeatInfo(),
+    };
+}
 
 /**
  * Parse KSON data from string or object.

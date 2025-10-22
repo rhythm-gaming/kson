@@ -25,3 +25,16 @@ export const MetaInfo = exportType(type({
     information: "string?",
 }).narrow(checkIsRecord));
 export type MetaInfo = typeof MetaInfo.infer;
+
+export function createMetaInfo(): MetaInfo {
+    return {
+        title: "",
+        artist: "",
+        chart_author: "",
+        
+        difficulty: 0,
+        level: 1,
+
+        disp_bpm: "120",
+    };
+}

@@ -12,3 +12,9 @@ export const BeatInfo = exportType(type({
     scroll_speed: GraphPoint.array().default((): GraphPoint[] => [[0, [1.0, 1.0]]]),
 }));
 export type BeatInfo = typeof BeatInfo.infer;
+
+export function createBeatInfo(): BeatInfo {
+    return BeatInfo.assert({
+        bpm: [[0, 120]],
+    });
+}

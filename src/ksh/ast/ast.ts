@@ -64,3 +64,15 @@ export interface KSH {
     /** Definition lines, typically at the end of the file. */
     footer: DefinitionLine[];
 }
+
+/**
+ * Creates a new KSH object with empty contents.
+ * @returns A new KSH object with no contents.
+ */
+export function createKSH(): KSH {
+    return {
+        header: [],
+        body: [],
+        footer: [],
+    };
+}
