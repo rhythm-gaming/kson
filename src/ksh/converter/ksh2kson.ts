@@ -71,6 +71,11 @@ function createBodyProcessState(): BodyProcessState {
     };
 }
 
+function toScrollSpeeds(changes: Array<[pulse: Pulse, delta: number]>): Array<[pulse: number, [from: number, to: number]]> {
+    // TODO
+    return [[0, [1.0, 1.0]]];
+}
+
 export class KSH2KSONConverter {
     readonly #ksh: KSH;
 
@@ -174,6 +179,12 @@ export class KSH2KSONConverter {
     #getKSHUnknownMeta(): NonNullable<KSHUnknownInfo['meta']> {
         const ksh_unknown_info = this.#getKSHUnknownInfo();
         return ksh_unknown_info.meta ?? (ksh_unknown_info.meta = {});
+    }
+
+    #getKSHUnknownOptions(key: string) {
+        const ksh_unknown_info = this.#getKSHUnknownInfo();
+        const options = (ksh_unknown_info.option ?? (ksh_unknown_info.option = {}));
+        return (options[key] ?? (options[key] = []));
     }
 
     #getKeySound() {
@@ -290,7 +301,15 @@ export class KSH2KSONConverter {
                     this.#getCompatInfo().ksh_version = line.version;
                     break;
                 
-                // TODO: Implement more.
+                case 'filtertype':
+                case 'pfiltergain':
+                    throw new Error("TODO");
+                
+                // Options that can't be in a header.
+                default: {
+                    this.#getKSHUnknownMeta()[line.key] = line.raw ?? "";
+                    break;
+                }
             }
         }
 
@@ -339,6 +358,9 @@ export class KSH2KSONConverter {
             
             this.#note_info.laser[i].push([section.y, section.v, section.w]);
         }
+
+        // Handle `stop` scroll speed changes.
+        this.#beat_info.scroll_speed = toScrollSpeeds(state.scroll_speed_changes);
     }
 
     #processMeasure(state: BodyProcessState, measure: Measure, measure_idx: number) {
@@ -458,17 +480,22 @@ export class KSH2KSONConverter {
     }
 
     #processMeasureOption(state: BodyProcessState, line: OptionLine, first_chart_line_passed: boolean) {
-        // TODO
-        const {key, raw: value = ""} = line;
-        switch(key) {
+        if (isUnknownOption(line)) {
+            this.#getKSHUnknownOptions(line.key).push([state.pulse, line.raw ?? ""]);
+            return;
+        }
+
+        switch(line.key) {
             case 'beat': {
                 if(first_chart_line_passed) {
-                    state.next_time_sig = parseTimeSig(value);
+                    state.next_time_sig = line.time_sig;
                 }
                 break;
             }
             case 't': {
-                const new_bpm = parseFloat(value);
+                if(typeof line.bpm !== 'number') break;
+
+                const new_bpm = line.bpm;
                 const last_bpm = this.#beat_info.bpm.at(-1);
                 if(last_bpm?.[0] === state.pulse) {
                     last_bpm[1] = new_bpm;
@@ -477,16 +504,13 @@ export class KSH2KSONConverter {
                 }
                 break;
             }
-            case 'laserrange_l': {
-                state.laser_states[0].wide = value === '2x';
-                break;
-            }
+            case 'laserrange_l':
             case 'laserrange_r': {
-                state.laser_states[1].wide = value === '2x';
+                state.laser_states[line.fx_lane].wide = line.range === 2;
                 break;
             }
             case 'chokkakuvol': {
-                const vol = parseInt(value, 10) / 100.0;
+                const vol = line.volume / 100.0;
                 const laser_vol = this.#getKeySoundLaser().vol ?? (this.#getKeySoundLaser().vol = []);
                 const last_vol = laser_vol.at(-1);
                 if(last_vol?.[0] === state.pulse) {
@@ -496,17 +520,20 @@ export class KSH2KSONConverter {
                 }
                 break;
             }
-            // TODO: stop
+            case 'stop': {
+                state.scroll_speed_changes.push([state.pulse, -1.0]);
+                state.scroll_speed_changes.push([state.pulse + line.duration, 1.0]);
+                break;
+            }
             // TODO: tilt
             // TODO: zoom_*, center_split
             // TODO: fx-*, laserrange_*, filtertype, etc.
             default: {
-                const ksh_unknown_info = this.#getKSHUnknownInfo();
-                const unknown_options = ksh_unknown_info.option ?? (ksh_unknown_info.option = {});
-                const values = unknown_options[key] ?? (unknown_options[key] = []);
-                values.push([state.pulse, value]);
+                this.#getKSHUnknownOptions(line.key).push([state.pulse, line.raw ?? ""]);
+                break;
             }
         }
+
     }
 
     #processMeasureComment(state: BodyProcessState, line: CommentLine) {
