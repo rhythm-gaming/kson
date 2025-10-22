@@ -60,7 +60,7 @@ Consult the KSON specification for how to navigate through a `KSON` object.
 
 #### Reading KSH Progression
 
-- [ ] Header parsing
+- [x] Header parsing
     - [x] `title`, `artist`, `effect`, `illustrator`
     - [x] `title_img`, `artist_img`, `jacket`
     - [x] `difficulty`, `level`
@@ -70,7 +70,7 @@ Consult the KSON specification for how to navigate through a `KSON` object.
     - [x] `po`, `plength`
     - [x] `bg`, `layer`, `v`, `vo`
     - [x] `chokkakuvol`, `chokkakuautovol`, `pfilterdelay`
-    - [ ] `filtertype`, `pfiltergain`
+    - [x] `filtertype`, `pfiltergain`
     - [x] `ver`, `information`
 - [ ] Body parsing
     - [ ] Chart lines
@@ -83,11 +83,11 @@ Consult the KSON specification for how to navigate through a `KSON` object.
         - [x] `t`, `beat`
         - [x] `chokkakuvol`
         - [x] `laserrange_l`, `laserrange_r`
-        - [ ] `stop`
+        - [x] `stop`
         - [ ] `tilt`
         - [ ] `zoom_*`, `center_split`
         - [ ] `fx-*`
-        - [ ] `filtertype`
+        - [x] `filtertype`, `pfiltergain`
 - [ ] Footer parsing
     - [ ] `#define_fx`
     - [ ] `#define_filter`

@@ -72,9 +72,24 @@ function createBodyProcessState(): BodyProcessState {
 }
 
 function toScrollSpeeds(changes: Array<[pulse: Pulse, delta: number]>): Array<[pulse: number, [from: number, to: number]]> {
-    // TODO
-    return [[0, [1.0, 1.0]]];
+    const scroll_speeds: Array<[pulse: number, [from: number, to: number]]> = [[0, [1.0, 1.0]]];
+
+    for(const [pulse, delta] of changes.sort((a, b) => a[0] - b[0])) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const last_point = scroll_speeds.at(-1)!;
+        if(pulse < last_point[0]) throw new Error(`Unexpected pulse=${pulse} last_point[0]=${last_point[0]}!`);
+
+        if(last_point[0] === pulse) {
+            last_point[1][1] += delta;
+        } else {
+            scroll_speeds.push([pulse, [last_point[1][1], last_point[1][1] + delta]]);
+        }
+    }
+
+    return scroll_speeds;
 }
+
+const KSH_LASER_FX = 'ksh_laser_fx';
 
 export class KSH2KSONConverter {
     readonly #ksh: KSH;
@@ -202,6 +217,55 @@ export class KSH2KSONConverter {
         return laser.legacy ?? (laser.legacy = KeySoundLaserLegacyInfo.assert({}));
     }
 
+    #getAudioEffectLaserInfo(): AudioEffectLaserInfo {
+        const audio_effect = this.#getAudioEffectInfo();
+        return audio_effect.laser ?? (audio_effect.laser = AudioEffectLaserInfo.assert({}));
+    }
+
+    #handleFilterType(name: string): string {
+        if(name !== "fx" && name !== "fx;bitc") {
+            return name;
+        }
+
+        const fp_filenames = this.#audio_info?.bgm?.legacy?.fp_filenames;
+        if(!fp_filenames || fp_filenames.length === 0) {
+            return ''; // No effect
+        }
+
+        const filename = fp_filenames[0];
+        const laser = this.#getAudioEffectLaserInfo();
+        const def = laser.def ?? (laser.def = {});
+
+        if(!def[KSH_LASER_FX]) {
+            def[KSH_LASER_FX] = { type: 'switch_audio', v: { filename } };
+        }
+
+        return KSH_LASER_FX;
+    }
+
+    #kshFilterTypeToKSON(filter_type: string): string | null {
+        switch(filter_type) {
+            case 'peak': return 'peaking_filter';
+            case 'hpf1': return 'high_pass_filter';
+            case 'lpf1': return 'low_pass_filter';
+            case 'bitc': return 'bitcrusher';
+            case KSH_LASER_FX: return KSH_LASER_FX;
+            case '': return null; // No effect
+            default: // user-defined
+                return filter_type;
+        }
+    }
+    
+    #addLaserEffectPulseEvent(pulse: number, kson_effect_name: string) {
+        const laser_effect = this.#getAudioEffectLaserInfo();
+        const pulse_event = laser_effect.pulse_event ?? (laser_effect.pulse_event = {});
+        const events = pulse_event[kson_effect_name] ?? (pulse_event[kson_effect_name] = []);
+        
+        if (events.at(-1) !== pulse) {
+            events.push(pulse);
+        }
+    }
+
     #processHeader() {
         for (const line of this.#ksh.header) {
             if (line.type !== 'option') {
@@ -302,8 +366,17 @@ export class KSH2KSONConverter {
                     break;
                 
                 case 'filtertype':
-                case 'pfiltergain':
-                    throw new Error("TODO");
+                    this.#addLaserEffectPulseEvent(0, this.#handleFilterType(line.filter_type));
+                    break;
+
+                case 'pfiltergain': {
+                    const laser = this.#getAudioEffectLaserInfo();
+                    const param_change = laser.param_change ?? (laser.param_change = {});
+                    const peaking_filter_params = param_change['peaking_filter'] ?? (param_change['peaking_filter'] = {});
+                    const gain_changes = peaking_filter_params['gain'] ?? (peaking_filter_params['gain'] = []);
+                    gain_changes.push([0, `${line.gain}%`])
+                    break;
+                }
                 
                 // Options that can't be in a header.
                 default: {
@@ -509,6 +582,24 @@ export class KSH2KSONConverter {
                 state.laser_states[line.fx_lane].wide = line.range === 2;
                 break;
             }
+            case 'filtertype':
+                this.#addLaserEffectPulseEvent(state.pulse, this.#handleFilterType(line.filter_type));
+                break;
+            case 'pfiltergain': {
+                const laser = this.#getAudioEffectLaserInfo();
+                const param_change = laser.param_change ?? (laser.param_change = {});
+                const peaking_filter_params = param_change['peaking_filter'] ?? (param_change['peaking_filter'] = {});
+                const gain_changes = peaking_filter_params['gain'] ?? (peaking_filter_params['gain'] = []);
+                const gain_val = `${line.gain}%`;
+
+                const last_change = gain_changes.at(-1);
+                if(last_change?.[0] === state.pulse) {
+                    last_change[1] = gain_val;
+                } else {
+                    gain_changes.push([state.pulse, gain_val]);
+                }
+                break;
+            }
             case 'chokkakuvol': {
                 const vol = line.volume / 100.0;
                 const laser_vol = this.#getKeySoundLaser().vol ?? (this.#getKeySoundLaser().vol = []);
@@ -527,7 +618,7 @@ export class KSH2KSONConverter {
             }
             // TODO: tilt
             // TODO: zoom_*, center_split
-            // TODO: fx-*, laserrange_*, filtertype, etc.
+            // TODO: fx-*, laserrange_*, etc.
             default: {
                 this.#getKSHUnknownOptions(line.key).push([state.pulse, line.raw ?? ""]);
                 break;
