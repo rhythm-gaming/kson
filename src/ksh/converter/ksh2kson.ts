@@ -1,4 +1,4 @@
-import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo, GraphSectionPoint, ButtonLane, LaserLane, AudioEffectFXInfo } from "../../kson/index.js";
+import { AudioEffectInfo, AudioInfo, BGMInfo, BGMPreviewInfo, BGInfo, CompatInfo, GaugeInfo, KSON, KSON_VERSION, LegacyBGMInfo, LegacyBGInfo, MetaInfo, NoteInfo, TimeSig, BeatInfo, KSHMovieInfo, KeySoundLaserInfo, KeySoundLaserLegacyInfo, AudioEffectLaserInfo, KSHLayerInfo, KSHUnknownInfo, EditorInfo, GraphSectionPoint, ButtonLane, LaserLane, AudioEffectFXInfo, LaserSection } from "../../kson/index.js";
 import { ChartLine, CommentLine, KSH, Measure, OptionLine, stringifyLine, UnknownLine } from "../ast/index.js";
 import { Pulse, PULSES_PER_WHOLE, SLAM_THRESHOLD } from "../ast/pulse.js";
 import { NoteType } from "../ast/note.js";
@@ -532,7 +532,9 @@ export class KSH2KSONConverter {
     #processLaser(pulse: number, state: LaserState, target: LaserLane, laser: LaserInd|null) {
         if (laser === null) {
             if (state.curr_section) {
-                target.push([state.curr_section.y, state.curr_section.v, state.curr_section.w]);
+                const laser: LaserSection = [state.curr_section.y, state.curr_section.v];
+                if(state.curr_section.w !== 1) laser.push(state.curr_section.w);
+                target.push(laser);
                 state.curr_section = null;
             }
             return;

@@ -1,32 +1,10 @@
 import { assert } from 'chai';
 
-import { parseKSH, Pulse, PULSES_PER_WHOLE } from "../ast/index.js";
-import { readTestData } from "../../util/test.js";
+import { parseKSH } from "../ast/index.js";
+import { readTestData, createLaserSection } from "../../util/test.js";
 
 import { ksh2kson } from "../converter/index.js";
-import { GraphSectionPointArray, KSON, LaserSection, createKSON } from "../../kson/index.js";
-
-const PULSES_PER_BEAT = PULSES_PER_WHOLE / 4;
-
-function createLaserSection(points: Array<[beat_no: number, pos: number]>): LaserSection {
-    if(points.length === 0) return [0, []];
-
-    const [start_beat] = points[0];
-    const y: Pulse = start_beat * PULSES_PER_BEAT;
-
-    const v: GraphSectionPointArray = [];
-    for(const [beat_no, pos] of points) {
-        const ry = (beat_no - start_beat) * PULSES_PER_BEAT;
-        const last_v = v.at(-1);
-        if(last_v?.[0] === ry) {
-            last_v[1][1] = pos;
-        } else {
-            v.push([ry, [pos, pos]]);
-        }
-    }
-
-    return [y, v];
-}
+import { KSON, createKSON } from "../../kson/index.js";
 
 describe("ksh/test/03-nov", function() {
     let kson: KSON = createKSON();
@@ -70,5 +48,59 @@ describe("ksh/test/03-nov", function() {
 
     it("should set laser notes correctly", function() {
         assert.exists(kson.note?.laser);
+        assert.deepStrictEqual(kson.note.laser[0], [
+            createLaserSection([
+                [0, 0],
+                [1, 0],
+            ]),
+            createLaserSection([
+                [4, 0],
+                [5, 1],
+            ]),
+            createLaserSection([
+                [8, 0],
+                [8.5, 1],
+                [9, 0],
+                [9.5, 0.5],
+                [10, 0],
+            ]),
+            createLaserSection([
+                [12, 0],
+                [12, 1],
+            ]),
+            createLaserSection([
+                [20, 0],
+                [20, 1],
+                [21, 0],
+                [21, 1],
+            ]),
+        ]);
+        assert.deepStrictEqual(kson.note.laser[1], [
+            createLaserSection([
+                [2, 1],
+                [3, 1],
+            ]),
+            createLaserSection([
+                [6, 1],
+                [7, 0],
+            ]),
+            createLaserSection([
+                [10, 1],
+                [10.5, 0],
+                [11, 1],
+                [11.5, 0.5],
+                [12, 1],
+            ]),
+            createLaserSection([
+                [16, 1],
+                [16, 0],
+            ]),
+            createLaserSection([
+                [22, 1],
+                [22, 0],
+                [23, 1],
+                [23, 0],
+            ]),
+        ]);
     })
 });
