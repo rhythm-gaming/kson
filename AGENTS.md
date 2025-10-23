@@ -37,32 +37,51 @@ This project uses pnpm.
     - `schema/`: ArkType schema for KSON 
 - `test/chart/`: Test charts.
 
-## Comments
+## Coding Style
+
+### TypeScript
+
+- Using `any` is strictly forbidden.
+- Use `as` only when it's absolutely necessary.
+
+## Format Representation
 
 ### KSH
 
 - Read `/spec/ksh.md` before working on a KSH feature.
 - `src/ksh/ast/pulse.ts` exports the following:
-  - `type Pulse`
-  - `const PULSES_PER_WHOLE: Pulse`, which is 960 (unlike spec, where a whole note is 192 pulses).
+  - `type Pulse = number`: Unlike spec, `Pulse` is always KSON-based (960 per whole note).
+    - `parsePulse` and `stringifyPulse` automatically converts from/to KSH-based pulses.
+  - `const PULSES_PER_WHOLE: Pulse`: `960`, not `192` as noted above.
   - `function parsePulse(s: string, default_value: Pulse): Pulse`
-    - Multiplication by 5 is automatically performed.
   - `function parsePulse(s: string, default_value?: null): Pulse|null`
   - `function stringifyPulse(p: Pulse): string`
-      - Division by 5 is automatically performed.
+
+### KSON
+
+- Read `/spec/kson.md` before working on a KSON feature.
+- ArkType is used for specifying a schema.
+- Some normalizations are performed in schema, so technically (inferred) schema types are narrower than spec types.
+  - Most significantly, default values are being filled.
+  - Input types still should conform to the spec.
+
+## Format Conversion
+
+### KSH to KSON
+
 - The `stop` option would be converted into KSON via scroll speed:
   - At the start of `stop`, scroll speed is decreased by 1.
   - At the end of `stop`, scroll speed is increased by 1`.
   - Note that this would give negative scroll speeds on overlapping stop intervals, which is intended.
 
-### KSON
+### KSON to KSH
 
-- Read `/spec/kson.md` before working on a KSON feature.
-- Some normalization is performed in schema. Most significantly, many fields with default values will be automatically filled.
+- Scroll speeds: Allow only when it can be represented by `stop`.
+- Graph curves: Ignore all curve parameters for now. 
 
-### Writing Tests
+## Unit Tests
 
 - This project uses mocha and chai.
 - In general, `foo.ts` is tested at `foo.spec.ts` (exception: per-chart tests for KSH under `/src/ksh/test/`).
-- Check existing `*.spec.ts` file before creating a new test file.
+- Take existing `*.spec.ts` files as references before creating a new test file.
 - Prefer using `strictEqual` and `deepStrictEqual` over `equal` and `deepEqual`.
